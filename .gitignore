@@ -2,8 +2,7 @@
 .env
 
 # Downloaded stuff
-sticker_packs/
-sticker_registry.json
+sticker_registry/
 
 # Pycache
 src/__pycache__/

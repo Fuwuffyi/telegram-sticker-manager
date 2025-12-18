@@ -7,8 +7,8 @@ from dotenv import load_dotenv
 _ = load_dotenv()
 
 # Paths
-DOWNLOAD_DIR: Path = Path("sticker_packs")
-REGISTRY_FILE: Path = Path("sticker_registry.json")
+DOWNLOAD_DIR: Path = Path("sticker_registry/pack_files")
+REGISTRY_FILE: Path = Path("sticker_registry/registry.json")
 
 # Telegram Bot Token
 BOT_TOKEN: str | None = os.getenv("BOT_TOKEN")

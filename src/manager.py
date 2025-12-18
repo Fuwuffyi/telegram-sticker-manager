@@ -116,10 +116,13 @@ class StickerPackManager:
             # Check if pack has new stickers
             new_stickers: set[str] = current_sticker_ids - existing_stickers
             if pack_info and not new_stickers:
-                logger.info(f"Pack '{pack_name}' is up to date, skipping")
+                logger.info(f"Pack '{pack_name}' is up to date with {len(existing_stickers)} stickers, skipping")
                 return
             logger.info(f"Processing pack '{pack_name}' ({sticker_set.title})")
-            logger.info(f"New stickers to download: {len(new_stickers)}")
+            if pack_info:
+                logger.info(f"New stickers to download: {len(new_stickers)}")
+            else:
+                logger.info(f"First time download: {len(current_sticker_ids)} stickers")
             pack_dir: Path = self._get_pack_dir(pack_name)
             # Prepare sticker info dict (preserve old stickers)
             stickers_dict: dict[str, dict[str, str | int | bool | None]] = {}
