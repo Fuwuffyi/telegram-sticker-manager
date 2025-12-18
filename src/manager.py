@@ -133,6 +133,14 @@ class StickerPackManager:
                     stickers_dict = old_stickers
             # Create emoji mapping
             emoji_mapping: dict[str, str] = {}
+            # Load existing emoji mappings if they exist
+            emoji_file: Path = pack_dir / "emojis.json"
+            if emoji_file.exists():
+                try:
+                    existing_emojis: dict[str, str] = json.loads(await asyncio.to_thread(emoji_file.read_text, encoding='utf-8'))
+                    emoji_mapping.update(existing_emojis)
+                except Exception as e:
+                    logger.error(f"Error loading existing emojis: {e}")
             # Download new stickers concurrently
             async with aiohttp.ClientSession() as session:
                 download_tasks: list[asyncio.Task[None]] = []
@@ -165,7 +173,6 @@ class StickerPackManager:
                 if download_tasks:
                     _ = await asyncio.gather(*download_tasks)
             # Save emoji mapping
-            emoji_file: Path = pack_dir / "emojis.json"
             _ = await asyncio.to_thread(
                 emoji_file.write_text,
                 json.dumps(emoji_mapping, indent=2, ensure_ascii=False),
