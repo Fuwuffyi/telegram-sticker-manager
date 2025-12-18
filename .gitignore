@@ -3,3 +3,7 @@
 
 # Downloaded stuff
 sticker_packs/
+sticker_registry.json
+
+# Pycache
+src/__pycache__/
