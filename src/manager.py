@@ -115,7 +115,8 @@ class StickerPackManager:
             current_sticker_ids: set[str] = {s.file_unique_id for s in sticker_set.stickers}
             # Check if pack has new stickers
             new_stickers: set[str] = current_sticker_ids - existing_stickers
-            if pack_info and not new_stickers:
+            removed_stickers: set[str] = existing_stickers - current_sticker_ids
+            if pack_info and not new_stickers and not removed_stickers:
                 logger.info(f"Pack '{pack_name}' is up to date with {len(existing_stickers)} stickers, skipping")
                 return
             logger.info(f"Processing pack '{pack_name}' ({sticker_set.title})")
