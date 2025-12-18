@@ -5,4 +5,4 @@
 sticker_registry/
 
 # Pycache
-src/__pycache__/
+src/bot/__pycache__/
