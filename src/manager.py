@@ -179,9 +179,11 @@ class StickerPackManager:
                 encoding='utf-8'
             )
             # Update registry
+            existing_artist: str | int | dict[Any, Any] = pack_info.get('artist', 'Unknown') if pack_info else 'Unknown'
             self.registry[pack_name] = {
                 'name': pack_name,
                 'title': sticker_set.title,
+                'artist': existing_artist,
                 'last_update': int(datetime.now().timestamp()),
                 'sticker_count': len(stickers_dict),
                 'stickers': stickers_dict
