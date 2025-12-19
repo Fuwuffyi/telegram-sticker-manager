@@ -57,7 +57,7 @@ async function searchPacks(query) {
                         value="${escapeHtml(pack.artist || 'Unknown')}"
                         id="artist-${escapeHtml(pack.name)}"
                     >
-                    <button class="artist-save" onclick="updateArtist('${escapeHtml(pack.name)}')">Save</button>
+                    <button type="button" class="artist-save" onclick="updateArtist('${escapeHtml(pack.name)}')">Save</button>
                 </div>
                 <div class="pack-actions">
                     <button class="btn btn-primary" onclick="showPack('${escapeHtml(pack.name)}')">
@@ -86,7 +86,7 @@ async function showPack(packName) {
             const filePath = `/sticker_files/${encodeURIComponent(packName)}/${encodeURIComponent(sticker.file_path)}`;
             return `
                 <div class="sticker-item" title="${escapeHtml(sticker.emoji || '')}">
-                    <img src="${filePath}" alt="Sticker" loading="lazy">
+                    <img src="${filePath}" alt="" loading="lazy">
                 </div>
             `;
          })

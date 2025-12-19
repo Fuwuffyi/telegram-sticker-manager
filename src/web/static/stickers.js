@@ -43,7 +43,7 @@ async function searchStickers(query) {
             return `
                 <div class="sticker-card">
                     <div class="sticker-preview">
-                        <img src="${filePath}" alt="Sticker" loading="lazy">
+                        <img src="${filePath}" alt="" loading="lazy">
                     </div>
                     <div class="sticker-info">
                         ${item.emoji ? `<div class="sticker-emoji">${escapeHtml(item.emoji)}</div>` : ''}
