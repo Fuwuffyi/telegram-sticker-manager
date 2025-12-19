@@ -9,13 +9,15 @@ import aiohttp
 from telegram import Sticker, StickerSet
 from telegram.ext import ContextTypes
 
+from src.bot.models import StickerPackInfo
+
 logger: logging.Logger = logging.getLogger(__name__)
 
 class StickerPackManager:
     def __init__(self, download_dir: Path, registry_file: Path) -> None:
         self.download_dir: Path = download_dir
         self.registry_file: Path = registry_file
-        self.registry: dict[str, dict[str, Any]] = {}
+        self.registry: dict[str, StickerPackInfo] = {}
         self._lock: asyncio.Lock = asyncio.Lock()
         self._load_registry()
 
@@ -108,7 +110,7 @@ class StickerPackManager:
             sticker_set: StickerSet = await context.bot.get_sticker_set(pack_name)
             logger.info(f"Retrieved sticker set: {sticker_set.title}")
             # Check if we need to update
-            pack_info: dict[str, str | int | dict[Any, Any]] | None = self.registry.get(pack_name)
+            pack_info: StickerPackInfo | None = self.registry.get(pack_name)
             existing_stickers: set[str] = self._get_existing_stickers(pack_name)
             # Create set of current sticker unique IDs
             current_sticker_ids: set[str] = {s.file_unique_id for s in sticker_set.stickers}
@@ -178,7 +180,7 @@ class StickerPackManager:
                 encoding='utf-8'
             )
             # Update registry
-            existing_artist: str | int | dict[Any, Any] = pack_info.get('artist', 'Unknown') if pack_info else 'Unknown'
+            existing_artist: str = pack_info.get('artist', 'Unknown') if pack_info else 'Unknown'
             self.registry[pack_name] = {
                 'name': pack_name,
                 'title': sticker_set.title,

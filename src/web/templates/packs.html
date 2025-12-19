@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sticker Pack Manager</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Sticker Pack Manager</h1>
+        </div>
+        <div class="nav">
+            <a href="/" class="active">Packs</a>
+            <a href="/stickers">Stickers</a>
+        </div>
+        <div class="search-box">
+            <input
+                type="text"
+                class="search-input"
+                id="searchInput"
+                placeholder="Search packs"
+                autocomplete="off"
+            >
+        </div>
+        <div id="loading" class="loading">Loading packs...</div>
+        <div id="packsGrid" class="packs-grid" style="display: none;"></div>
+        <div id="emptyState" class="empty-state" style="display: none;">
+            <h2>No packs found</h2>
+            <p>Try a different search term</p>
+        </div>
+    </div>
+    <div id="modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div>
+                    <div class="modal-title" id="modalTitle"></div>
+                    <div id="modalSubtitle"></div>
+                </div>
+                <button class="close-btn" onclick="closeModal()">&times;</button>
+            </div>
+            <div class="modal-stickers-grid" id="modalStickers"></div>
+        </div>
+    </div>
+    <script src="{{ url_for('static', filename='packs.js') }}"></script>
+</body>
+</html>
