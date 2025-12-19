@@ -38,7 +38,7 @@ class StickerPackManager:
             try:
                 self.registry_file.parent.mkdir(parents=True, exist_ok=True)
                 with open(self.registry_file, 'w', encoding='utf-8') as f:
-                    json.dump(self.registry, f, indent=2, ensure_ascii=False)
+                    json.dump(self.registry, f, ensure_ascii=False)
                 logger.info("Registry saved successfully")
             except Exception as e:
                 logger.error(f"Error saving registry: {e}")
@@ -176,7 +176,7 @@ class StickerPackManager:
             # Save emoji mapping
             _ = await asyncio.to_thread(
                 emoji_file.write_text,
-                json.dumps(emoji_mapping, indent=2, ensure_ascii=False),
+                json.dumps(emoji_mapping, ensure_ascii=False),
                 encoding='utf-8'
             )
             # Update registry

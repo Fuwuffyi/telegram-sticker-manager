@@ -20,7 +20,7 @@ def load_registry() -> PackRegistry:
 def save_registry(registry: PackRegistry) -> None:
     REGISTRY_FILE.parent.mkdir(parents=True, exist_ok=True)
     with open(REGISTRY_FILE, 'w', encoding='utf-8') as f:
-        json.dump(registry, f, indent=2, ensure_ascii=False)
+        json.dump(registry, f, ensure_ascii=False)
 
 def fuzzy_search_packs(query: str, registry: PackRegistry, limit: int = 50) -> list[dict[str, str | int | dict[str, dict[str, str | int | bool | None]]]]:
     if not query:
@@ -57,7 +57,7 @@ def load_emoji_map(pack_name: str) -> dict[str, str]:
             pass
     return {}
 
-def fuzzy_search_stickers(query: str, registry: PackRegistry, limit: int = 100) -> list[StickerResult]:
+def fuzzy_search_stickers(query: str, registry: PackRegistry, limit: int | None = None) -> list[StickerResult]:
     if not query:
         # Return recent stickers if no query
         all_stickers: list[StickerResult] = []
@@ -81,7 +81,7 @@ def fuzzy_search_stickers(query: str, registry: PackRegistry, limit: int = 100) 
                     'sticker': sticker_data,
                     'emoji': emoji
                 })
-        return all_stickers[:limit]
+        return all_stickers[:limit] if limit else all_stickers
     results: list[tuple[StickerResult, float]] = []
     for pack_name, pack_info in registry.items():
         stickers = pack_info.get('stickers', {})
@@ -117,7 +117,7 @@ def fuzzy_search_stickers(query: str, registry: PackRegistry, limit: int = 100) 
                 }, score))
     # Sort by score
     results.sort(key=lambda x: x[1], reverse=True)
-    return [r[0] for r in results[:limit]]
+    return [r[0] for r in results[:limit]] if limit else [r[0] for r in results]
 
 @app.route('/')
 def index() -> str:
