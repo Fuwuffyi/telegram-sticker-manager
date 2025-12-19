@@ -15,7 +15,7 @@ class StickerPackManager:
     def __init__(self, download_dir: Path, registry_file: Path) -> None:
         self.download_dir: Path = download_dir
         self.registry_file: Path = registry_file
-        self.registry: dict[str, dict[str, str | int | dict[Any, Any]]] = {}
+        self.registry: dict[str, dict[str, Any]] = {}
         self._lock: asyncio.Lock = asyncio.Lock()
         self._load_registry()
 
@@ -54,16 +54,15 @@ class StickerPackManager:
                     output_path.parent.mkdir(parents=True, exist_ok=True)
                     _ = await asyncio.to_thread(output_path.write_bytes, content)
                     return True
-                else:
-                    logger.error(f"Failed to download {file_url}: {response.status}")
-                    return False
+                logger.error(f"Failed to download {file_url}: {response.status}")
+                return False
         except Exception as e:
             logger.error(f"Error downloading sticker: {e}")
             return False
 
     def _get_existing_stickers(self, pack_name: str) -> set[str]:
         if pack_name in self.registry:
-            stickers_data: str | int | dict[Any, Any] = self.registry[pack_name].get('stickers', {})
+            stickers_data = self.registry[pack_name].get('stickers', {})
             if isinstance(stickers_data, dict):
                 return set(stickers_data.keys())
         return set()
@@ -73,8 +72,7 @@ class StickerPackManager:
             return "tgs"
         elif sticker.is_video:
             return "webm"
-        else:
-            return "webp"
+        return "webp"
 
     async def _download_and_track(
         self,
@@ -98,6 +96,7 @@ class StickerPackManager:
                 'file_path': filename
             }
             logger.info(f"Downloaded: {filename}")
+
 
     async def process_sticker_pack(self, sticker: Sticker, context: ContextTypes.DEFAULT_TYPE) -> None:
         if not sticker.set_name:

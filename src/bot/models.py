@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from typing import Any
 
 @dataclass
 class StickerInfo:
@@ -27,6 +28,17 @@ class StickerInfo:
 class StickerPackInfo:
     name: str
     title: str
+    artist: str
     last_update: int
     sticker_count: int
-    stickers: dict[str, dict[str, str | int | bool | None]]
+    stickers: dict[str, dict[str, Any]]
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            'name': self.name,
+            'title': self.title,
+            'artist': self.artist,
+            'last_update': self.last_update,
+            'sticker_count': self.sticker_count,
+            'stickers': self.stickers
+        }

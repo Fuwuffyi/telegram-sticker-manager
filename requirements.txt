@@ -11,5 +11,8 @@ python-telegram-bot>=22.5
 # Website
 flask>=3.1.2
 
+# Fuzzy find
+rapidfuzz>=3.14.3
+
 # Using a fork of signalstickers-client because the package has set upper limits to dependencies which are incompatible with python-telegram-bot
 git+https://github.com/signalstickers/signalstickers-client.git@ecc0ffd503b9d9e06e24b56611baae18df3d9b4b

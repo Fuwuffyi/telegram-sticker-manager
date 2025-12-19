@@ -3,9 +3,10 @@ from functools import partial
 
 from telegram.ext import ApplicationBuilder, MessageHandler, filters
 
-from config import BOT_TOKEN, DOWNLOAD_DIR, REGISTRY_FILE, validate_config
-from handlers import handle_sticker_pack
-from manager import StickerPackManager
+from src.config import BOT_TOKEN, DOWNLOAD_DIR, REGISTRY_FILE, validate_config
+
+from src.bot.manager import StickerPackManager
+from src.bot.handlers import handle_sticker_pack
 
 # Configure logging
 logging.basicConfig(
