@@ -7,7 +7,7 @@ from dotenv import load_dotenv
 _ = load_dotenv()
 
 # Paths
-PROJECT_ROOT: Path = Path(__file__).parent.parent.parent
+PROJECT_ROOT: Path = Path(__file__).resolve().parent.parent
 DOWNLOAD_DIR: Path = PROJECT_ROOT / "sticker_registry" / "pack_files"
 REGISTRY_FILE: Path = PROJECT_ROOT / "sticker_registry" / "registry.json"
 
