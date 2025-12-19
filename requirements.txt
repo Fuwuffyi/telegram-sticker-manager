@@ -5,6 +5,9 @@ asyncio>=4.0.0
 # .env loading
 python-dotenv>=1.2.1
 
+# Local database
+duckdb>=1.4.3
+
 # Telegram bot
 python-telegram-bot>=22.5
 
