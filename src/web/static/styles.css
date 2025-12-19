@@ -1,406 +1,409 @@
 * {
-    margin: 0;
-    padding: 0;
-    box-sizing: border-box;
+   margin: 0;
+   padding: 0;
+   box-sizing: border-box;
 }
 
 :root {
-    --bg-primary: #121212;
-    --bg-secondary: #1e1e1e;
-    --bg-tertiary: #2a2a2a;
-    --text-primary: #e0e0e0;
-    --text-secondary: #a0a0a0;
-    --accent: #FF5722;
-    --accent-dark: #E65100;
-    --border: #333333;
-    --success: #03dac6;
-    --error: #cf6679;
+   --bg-primary: #121212;
+   --bg-secondary: #1e1e1e;
+   --bg-tertiary: #2a2a2a;
+   --text-primary: #e0e0e0;
+   --text-secondary: #a0a0a0;
+   --accent: #FF5722;
+   --accent-dark: #E64A19;
+   --border: #333333;
+   --success: #03dac6;
+   --error: #cf6679;
 }
 
 body {
-    font-family: 'Roboto', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-    background: var(--bg-primary);
-    color: var(--text-primary);
-    min-height: 100vh;
-    padding: 20px;
+   font-family: "Roboto", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+   background: var(--bg-primary);
+   color: var(--text-primary);
+   min-height: 100vh;
+   padding: 20px;
 }
 
 .container {
-    max-width: 1400px;
-    margin: 0 auto;
+   max-width: 1400px;
+   margin: 0 auto;
 }
 
 /* Header */
 .header {
-    text-align: center;
-    margin-bottom: 32px;
+   text-align: center;
+   margin-bottom: 32px;
 }
 
 .header h1 {
-    font-size: 2rem;
-    font-weight: 400;
-    letter-spacing: 0.5px;
+   font-size: 2rem;
+   font-weight: 400;
+   letter-spacing: 0.5px;
 }
 
 /* Navigation */
 .nav {
-    display: flex;
-    gap: 4px;
-    justify-content: center;
-    margin-bottom: 24px;
+   display: flex;
+   gap: 4px;
+   justify-content: center;
+   margin-bottom: 24px;
 }
 
 .nav a {
-    color: var(--text-primary);
-    text-decoration: none;
-    padding: 12px 24px;
-    background: var(--bg-secondary);
-    border-radius: 8px;
-    transition: background 0.2s;
-    font-size: 0.9rem;
-    font-weight: 500;
+   color: var(--text-primary);
+   text-decoration: none;
+   padding: 12px 24px;
+   background: var(--bg-secondary);
+   border-radius: 8px;
+   transition: background 0.2s;
+   font-size: 0.9rem;
+   font-weight: 500;
 }
 
 .nav a:hover {
-    background: var(--bg-tertiary);
+   background: var(--bg-tertiary);
 }
 
 .nav a.active {
-    background: var(--accent);
-    color: var(--bg-primary);
+   background: var(--accent);
+   color: var(--bg-primary);
 }
 
 /* Search Box */
 .search-box {
-    background: var(--bg-secondary);
-    padding: 24px;
-    border-radius: 8px;
-    margin-bottom: 24px;
+   background: var(--bg-secondary);
+   padding: 24px;
+   border-radius: 8px;
+   margin-bottom: 24px;
 }
 
 .search-input {
-    width: 100%;
-    padding: 16px;
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    font-size: 16px;
-    background: var(--bg-tertiary);
-    color: var(--text-primary);
-    transition: border-color 0.2s;
+   width: 100%;
+   padding: 16px;
+   border: 1px solid var(--border);
+   border-radius: 8px;
+   font-size: 16px;
+   background: var(--bg-tertiary);
+   color: var(--text-primary);
+   transition: border-color 0.2s;
 }
 
 .search-input:focus {
-    outline: none;
-    border-color: var(--accent);
+   outline: none;
+   border-color: var(--accent);
 }
 
 .search-hint {
-    margin-top: 12px;
-    color: var(--text-secondary);
-    font-size: 0.875rem;
+   margin-top: 12px;
+   color: var(--text-secondary);
+   font-size: 0.875rem;
 }
 
 /* Pack Grid */
 .packs-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-    gap: 16px;
+   display: grid;
+   grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+   gap: 16px;
 }
 
 .pack-card {
-    background: var(--bg-secondary);
-    padding: 20px;
-    border-radius: 8px;
-    border: 1px solid var(--border);
-    transition: border-color 0.2s;
+   background: var(--bg-secondary);
+   padding: 20px;
+   border-radius: 8px;
+   border: 1px solid var(--border);
+   transition: border-color 0.2s;
 }
 
 .pack-card:hover {
-    border-color: var(--accent);
+   border-color: var(--accent);
 }
 
 .pack-header {
-    margin-bottom: 16px;
+   margin-bottom: 16px;
 }
 
 .pack-title {
-    font-size: 1.125rem;
-    font-weight: 500;
-    margin-bottom: 4px;
+   font-size: 1.125rem;
+   font-weight: 500;
+   margin-bottom: 4px;
 }
 
 .pack-name {
-    font-size: 0.875rem;
-    color: var(--text-secondary);
-    font-family: 'Roboto Mono', monospace;
+   font-size: 0.875rem;
+   color: var(--text-secondary);
+   font-family: "Roboto Mono", monospace;
 }
 
 .pack-info {
-    display: flex;
-    gap: 16px;
-    margin-bottom: 16px;
-    font-size: 0.875rem;
-    color: var(--text-secondary);
+   display: flex;
+   gap: 16px;
+   margin-bottom: 16px;
+   font-size: 0.875rem;
+   color: var(--text-secondary);
 }
 
 .pack-artist {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    margin-bottom: 16px;
+   display: flex;
+   align-items: center;
+   gap: 8px;
+   margin-bottom: 16px;
 }
 
 .artist-input {
-    flex: 1;
-    padding: 8px 12px;
-    border: 1px solid var(--border);
-    border-radius: 4px;
-    font-size: 0.875rem;
-    background: var(--bg-tertiary);
-    color: var(--text-primary);
+   flex: 1 1 auto;
+   min-width: 0;
+   padding: 8px 12px;
+   border: 1px solid var(--border);
+   border-radius: 4px;
+   font-size: 0.875rem;
+   background: var(--bg-tertiary);
+   color: var(--text-primary);
 }
 
 .artist-save {
-    padding: 8px 16px;
-    background: var(--accent);
-    color: var(--bg-primary);
-    border: none;
-    border-radius: 4px;
-    cursor: pointer;
-    font-size: 0.875rem;
-    font-weight: 500;
-    transition: background 0.2s;
+   flex: 0 0 auto;
+   white-space: nowrap;
+   padding: 8px 16px;
+   background: var(--accent);
+   color: var(--bg-primary);
+   border: none;
+   border-radius: 4px;
+   cursor: pointer;
+   font-size: 0.875rem;
+   font-weight: 500;
+   transition: background 0.2s;
 }
 
 .artist-save:hover {
-    background: var(--accent-dark);
+   background: var(--accent-dark);
 }
 
 .pack-actions {
-    display: flex;
-    gap: 8px;
+   display: flex;
+   gap: 8px;
 }
 
 /* Buttons */
 .btn {
-    flex: 1;
-    padding: 12px;
-    border: none;
-    border-radius: 8px;
-    cursor: pointer;
-    font-size: 0.875rem;
-    font-weight: 500;
-    transition: background 0.2s;
+   flex: 1;
+   padding: 12px;
+   border: none;
+   border-radius: 8px;
+   cursor: pointer;
+   font-size: 0.875rem;
+   font-weight: 500;
+   transition: background 0.2s;
 }
 
 .btn-primary {
-    background: var(--accent);
-    color: var(--bg-primary);
+   background: var(--accent);
+   color: var(--bg-primary);
 }
 
 .btn-primary:hover {
-    background: var(--accent-dark);
+   background: var(--accent-dark);
 }
 
 /* Stickers Grid */
 .stickers-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
-    gap: 12px;
+   display: grid;
+   grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+   gap: 12px;
 }
 
 .sticker-card {
-    background: var(--bg-secondary);
-    padding: 12px;
-    border-radius: 8px;
-    border: 1px solid var(--border);
-    transition: border-color 0.2s;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
+   background: var(--bg-secondary);
+   padding: 12px;
+   border-radius: 8px;
+   border: 1px solid var(--border);
+   transition: border-color 0.2s;
+   display: flex;
+   flex-direction: column;
+   align-items: center;
 }
 
 .sticker-card:hover {
-    border-color: var(--accent);
+   border-color: var(--accent);
 }
 
 .sticker-preview {
-    width: 100%;
-    aspect-ratio: 1;
-    background: var(--bg-tertiary);
-    border-radius: 4px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    overflow: hidden;
-    margin-bottom: 8px;
+   width: 100%;
+   aspect-ratio: 1;
+   background: var(--bg-tertiary);
+   border-radius: 4px;
+   display: flex;
+   align-items: center;
+   justify-content: center;
+   overflow: hidden;
+   margin-bottom: 8px;
 }
 
 .sticker-preview img {
-    max-width: 100%;
-    max-height: 100%;
-    object-fit: contain;
+   max-width: 100%;
+   max-height: 100%;
+   object-fit: contain;
 }
 
 .sticker-info {
-    width: 100%;
-    text-align: center;
+   width: 100%;
+   text-align: center;
 }
 
 .sticker-emoji {
-    font-size: 1.25rem;
-    margin-bottom: 4px;
+   font-size: 1.25rem;
+   margin-bottom: 4px;
 }
 
 .sticker-pack-name {
-    font-size: 0.75rem;
-    color: var(--text-secondary);
-    margin-bottom: 2px;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+   font-size: 0.75rem;
+   color: var(--text-secondary);
+   margin-bottom: 2px;
+   white-space: nowrap;
+   overflow: hidden;
+   text-overflow: ellipsis;
 }
 
 .sticker-artist {
-    font-size: 0.7rem;
-    color: var(--text-secondary);
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+   font-size: 0.7rem;
+   color: var(--text-secondary);
+   white-space: nowrap;
+   overflow: hidden;
+   text-overflow: ellipsis;
 }
 
 /* Modal */
 .modal {
-    display: none;
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background: rgba(0, 0, 0, 0.85);
-    z-index: 1000;
-    overflow-y: auto;
+   display: none;
+   position: fixed;
+   top: 0;
+   left: 0;
+   width: 100%;
+   height: 100%;
+   background: rgba(0, 0, 0, 0.85);
+   z-index: 1000;
+   overflow-y: auto;
 }
 
 .modal.active {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 20px;
+   display: flex;
+   align-items: center;
+   justify-content: center;
+   padding: 20px;
 }
 
 .modal-content {
-    background: var(--bg-secondary);
-    padding: 24px;
-    border-radius: 8px;
-    border: 1px solid var(--border);
-    max-width: 1000px;
-    width: 100%;
-    max-height: 90vh;
-    overflow-y: auto;
+   background: var(--bg-secondary);
+   padding: 24px;
+   border-radius: 8px;
+   border: 1px solid var(--border);
+   max-width: 1000px;
+   width: 100%;
+   max-height: 90vh;
+   overflow-y: auto;
 }
 
 .modal-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-start;
-    margin-bottom: 24px;
-    padding-bottom: 16px;
-    border-bottom: 1px solid var(--border);
+   display: flex;
+   justify-content: space-between;
+   align-items: flex-start;
+   margin-bottom: 24px;
+   padding-bottom: 16px;
+   border-bottom: 1px solid var(--border);
 }
 
 .modal-title {
-    font-size: 1.5rem;
-    font-weight: 500;
+   font-size: 1.5rem;
+   font-weight: 500;
 }
 
 #modalSubtitle {
-    font-size: 0.875rem;
-    color: var(--text-secondary);
-    margin-top: 4px;
+   font-size: 0.875rem;
+   color: var(--text-secondary);
+   margin-top: 4px;
 }
 
 .close-btn {
-    background: none;
-    border: none;
-    font-size: 2rem;
-    cursor: pointer;
-    color: var(--text-secondary);
-    transition: color 0.2s;
-    line-height: 1;
-    padding: 0;
-    margin-left: 16px;
+   background: none;
+   border: none;
+   font-size: 2rem;
+   cursor: pointer;
+   color: var(--text-secondary);
+   transition: color 0.2s;
+   line-height: 1;
+   padding: 0;
+   margin-left: 16px;
 }
 
 .close-btn:hover {
-    color: var(--text-primary);
+   color: var(--text-primary);
 }
 
 .modal-stickers-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
-    gap: 8px;
+   display: grid;
+   grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+   gap: 8px;
 }
 
 .sticker-item {
-    aspect-ratio: 1;
-    background: var(--bg-tertiary);
-    border-radius: 4px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    overflow: hidden;
+   aspect-ratio: 1;
+   background: var(--bg-tertiary);
+   border-radius: 4px;
+   display: flex;
+   align-items: center;
+   justify-content: center;
+   overflow: hidden;
 }
 
 .sticker-item img {
-    max-width: 100%;
-    max-height: 100%;
-    object-fit: contain;
+   max-width: 100%;
+   max-height: 100%;
+   object-fit: contain;
 }
 
 /* Loading and Empty States */
 .loading {
-    text-align: center;
-    color: var(--text-secondary);
-    padding: 40px;
-    font-size: 1rem;
+   text-align: center;
+   color: var(--text-secondary);
+   padding: 40px;
+   font-size: 1rem;
 }
 
 .empty-state {
-    text-align: center;
-    color: var(--text-secondary);
-    padding: 60px 20px;
+   text-align: center;
+   color: var(--text-secondary);
+   padding: 60px 20px;
 }
 
 .empty-state h2 {
-    font-size: 1.5rem;
-    font-weight: 400;
-    margin-bottom: 8px;
-    color: var(--text-primary);
+   font-size: 1.5rem;
+   font-weight: 400;
+   margin-bottom: 8px;
+   color: var(--text-primary);
 }
 
 .results-count {
-    color: var(--text-secondary);
-    text-align: center;
-    margin-bottom: 16px;
-    font-size: 0.875rem;
+   color: var(--text-secondary);
+   text-align: center;
+   margin-bottom: 16px;
+   font-size: 0.875rem;
 }
 
 /* Scrollbar styling */
 ::-webkit-scrollbar {
-    width: 8px;
-    height: 8px;
+   width: 8px;
+   height: 8px;
 }
 
 ::-webkit-scrollbar-track {
-    background: var(--bg-primary);
+   background: var(--bg-primary);
 }
 
 ::-webkit-scrollbar-thumb {
-    background: var(--bg-tertiary);
-    border-radius: 4px;
+   background: var(--bg-tertiary);
+   border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-    background: var(--border);
+   background: var(--border);
 }
