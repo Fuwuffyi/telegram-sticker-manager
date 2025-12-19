@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+   <head>
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <title>Custom Sticker Packs</title>
+      <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+   </head>
+   <body>
+      <main class="container">
+         <header class="header">
+            <h1>Custom Sticker Packs</h1>
+         </header>
+         <nav class="nav" aria-label="Primary">
+            <a href="/">Packs</a>
+            <a href="/stickers">Stickers</a>
+            <a href="/custom-packs" class="active" aria-current="page">Custom Packs</a>
+         </nav>
+         <div class="actions-bar">
+            <button class="btn btn-primary" data-action="create-pack">Create New Pack</button>
+         </div>
+         <div id="loading" class="loading">Loading custom packs...</div>
+         <div id="customPacksGrid" class="packs-grid" hidden></div>
+         <div id="emptyState" class="empty-state" hidden>
+            <h2>No custom packs yet</h2>
+            <p>Create your first custom sticker pack!</p>
+         </div>
+      </main>
+      <!-- Create Pack Modal -->
+      <div id="createModal" class="modal" role="dialog" aria-modal="true">
+         <div class="modal-content modal-small">
+            <div class="modal-header">
+               <div class="modal-title">Create Custom Pack</div>
+               <button class="close-btn" type="button" aria-label="Close dialog" data-action="close-create-modal">&times;</button>
+            </div>
+            <div class="modal-body">
+               <label for="packName">Pack Name (ID):</label>
+               <input type="text" id="packName" class="form-input" placeholder="my_custom_pack" required>
+               <label for="packTitle">Display Title:</label>
+               <input type="text" id="packTitle" class="form-input" placeholder="My Custom Pack" required>
+               <button class="btn btn-primary" data-action="save-new-pack">Create Pack</button>
+            </div>
+         </div>
+      </div>
+      <!-- Edit Pack Modal -->
+      <div id="editModal" class="modal" role="dialog" aria-modal="true">
+         <div class="modal-content modal-large">
+            <div class="modal-header">
+               <div>
+                  <div class="modal-title" id="editModalTitle"></div>
+                  <input type="text" id="editPackTitle" class="title-input" placeholder="Pack title">
+               </div>
+               <button class="close-btn" type="button" aria-label="Close dialog" data-action="close-edit-modal">&times;</button>
+            </div>
+            <div class="modal-tabs">
+               <button class="tab-btn active" data-tab="current-stickers">Current Stickers</button>
+               <button class="tab-btn" data-tab="add-stickers">Add Stickers</button>
+               <button class="tab-btn" data-tab="add-packs">Add From Packs</button>
+            </div>
+            <div class="tab-content active" id="current-stickers">
+               <div id="currentStickersGrid" class="stickers-grid"></div>
+               <div id="currentEmpty" class="empty-state" hidden>
+                  <p>No stickers in this pack yet</p>
+               </div>
+            </div>
+            <div class="tab-content" id="add-stickers">
+               <div class="search-box">
+                  <input type="text" id="stickerSearchInput" class="search-input" placeholder="Search stickers to add...">
+               </div>
+               <div id="searchStickersGrid" class="stickers-grid"></div>
+            </div>
+            <div class="tab-content" id="add-packs">
+               <div class="search-box">
+                  <input type="text" id="packSearchInput" class="search-input" placeholder="Search packs to add...">
+               </div>
+               <div id="searchPacksGrid" class="packs-grid"></div>
+            </div>
+            <div class="modal-footer">
+               <button class="btn btn-primary" data-action="save-pack-changes">Save Changes</button>
+            </div>
+         </div>
+      </div>
+      <!-- Custom Pack Card Template -->
+      <template id="customPackCardTemplate">
+         <div class="pack-card">
+            <div class="pack-header">
+               <div class="pack-title" data-field="title"></div>
+               <div class="pack-name" data-field="name"></div>
+            </div>
+            <div class="pack-info">
+               <span data-field="sticker_count"></span>
+            </div>
+            <div class="pack-actions">
+               <button class="btn btn-primary" data-action="edit-pack">Edit Pack</button>
+               <button class="btn btn-secondary" data-action="delete-pack">Delete</button>
+            </div>
+         </div>
+      </template>
+      <!-- Sticker Item Template for selection -->
+      <template id="selectableStickerTemplate">
+         <div class="sticker-card selectable">
+            <div class="sticker-preview">
+               <img data-field="image" alt="" loading="lazy">
+               <div class="selection-indicator"></div>
+            </div>
+            <div class="sticker-info">
+               <div class="sticker-emoji" data-field="emoji"></div>
+               <div class="sticker-pack-name" data-field="pack_title"></div>
+            </div>
+         </div>
+      </template>
+      <!-- Pack Item Template for selection -->
+      <template id="selectablePackTemplate">
+         <div class="pack-card selectable">
+            <div class="pack-header">
+               <div class="pack-title" data-field="title"></div>
+               <div class="pack-name" data-field="name"></div>
+            </div>
+            <div class="pack-info">
+               <span data-field="sticker_count"></span>
+            </div>
+            <div class="selection-indicator"></div>
+         </div>
+      </template>
+      <script src="{{ url_for('static', filename='custom_packs.js') }}" defer></script>
+   </body>
+</html>

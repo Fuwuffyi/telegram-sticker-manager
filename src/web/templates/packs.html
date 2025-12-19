@@ -14,6 +14,7 @@
          <nav class="nav" aria-label="Primary">
             <a href="/" class="active" aria-current="page">Packs</a>
             <a href="/stickers">Stickers</a>
+            <a href="/custom-packs">Custom Packs</a>
          </nav>
          <div class="search-box">
             <input type="text" class="search-input" id="searchInput" placeholder="Search packs" autocomplete="off">
@@ -25,6 +26,7 @@
             <p>Try a different search term</p>
          </div>
       </main>
+      <!-- Modal for viewing pack stickers -->
       <div id="modal" class="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
          <div class="modal-content">
             <div class="modal-header">
@@ -37,6 +39,32 @@
             <div class="modal-stickers-grid" id="modalStickers"></div>
          </div>
       </div>
+      <!-- Pack Card Template -->
+      <template id="packCardTemplate">
+         <div class="pack-card">
+            <div class="pack-header">
+               <div class="pack-title" data-field="title"></div>
+               <div class="pack-name" data-field="name"></div>
+            </div>
+            <div class="pack-info">
+               <span data-field="sticker_count"></span>
+               <span data-field="last_update"></span>
+            </div>
+            <div class="pack-artist">
+               <input type="text" class="artist-input" data-field="artist-input">
+               <button type="button" class="artist-save" data-action="save-artist">Save</button>
+            </div>
+            <div class="pack-actions">
+               <button class="btn btn-primary" data-action="view-stickers">View Stickers</button>
+            </div>
+         </div>
+      </template>
+      <!-- Sticker Item Template -->
+      <template id="stickerItemTemplate">
+         <div class="sticker-item">
+            <img data-field="image" alt="" loading="lazy">
+         </div>
+      </template>
       <script src="{{ url_for('static', filename='packs.js') }}" defer></script>
    </body>
 </html>

@@ -5,6 +5,9 @@ const loading = document.getElementById('loading');
 const emptyState = document.getElementById('emptyState');
 const modal = document.getElementById('modal');
 
+const packCardTemplate = document.getElementById('packCardTemplate');
+const stickerItemTemplate = document.getElementById('stickerItemTemplate');
+
 // Initial load
 searchPacks('');
 
@@ -16,6 +19,14 @@ searchInput.addEventListener('input', (e) => {
    }, 300);
 });
 
+// Event delegation for modal close
+document.addEventListener('click', (e) => {
+   const action = e.target.dataset.action;
+   if (action === 'close-modal' || (e.target === modal)) {
+      closeModal();
+   }
+});
+
 function formatDate(timestamp) {
    const date = new Date(timestamp * 1000);
    return date.toLocaleDateString();
@@ -25,6 +36,37 @@ function escapeHtml(text) {
    const div = document.createElement('div');
    div.textContent = text;
    return div.innerHTML;
+}
+
+function createPackCard(pack) {
+   const clone = packCardTemplate.content.cloneNode(true);
+   const card = clone.querySelector('.pack-card');
+   // Set text content
+   clone.querySelector('[data-field="title"]').textContent = pack.title;
+   clone.querySelector('[data-field="name"]').textContent = pack.name;
+   clone.querySelector('[data-field="sticker_count"]').textContent = `${pack.sticker_count} stickers`;
+   clone.querySelector('[data-field="last_update"]').textContent = formatDate(pack.last_update);
+   // Set artist input
+   const artistInput = clone.querySelector('[data-field="artist-input"]');
+   artistInput.value = pack.artist || 'Unknown';
+   artistInput.id = `artist-${pack.name}`;
+   // Add event listeners
+   clone.querySelector('[data-action="save-artist"]').addEventListener('click', () => {
+      updateArtist(pack.name);
+   });
+   clone.querySelector('[data-action="view-stickers"]').addEventListener('click', () => {
+      showPack(pack.name);
+   });
+   return clone;
+}
+
+function createStickerItem(packName, sticker, emoji) {
+   const clone = stickerItemTemplate.content.cloneNode(true);
+   const img = clone.querySelector('[data-field="image"]');
+   const filePath = `/sticker_files/${encodeURIComponent(packName)}/${encodeURIComponent(sticker.file_path)}`;
+   img.src = filePath;
+   img.title = emoji || '';
+   return clone;
 }
 
 async function searchPacks(query) {
@@ -40,33 +82,10 @@ async function searchPacks(query) {
          return;
       }
       packsGrid.style.display = 'grid';
-      packsGrid.innerHTML = packs.map(pack => `
-            <div class="pack-card">
-                <div class="pack-header">
-                    <div class="pack-title">${escapeHtml(pack.title)}</div>
-                    <div class="pack-name">${escapeHtml(pack.name)}</div>
-                </div>
-                <div class="pack-info">
-                    <span>${pack.sticker_count} stickers</span>
-                    <span>${formatDate(pack.last_update)}</span>
-                </div>
-                <div class="pack-artist">
-                    <input
-                        type="text"
-                        class="artist-input"
-                        value="${escapeHtml(pack.artist || 'Unknown')}"
-                        id="artist-${escapeHtml(pack.name)}"
-                    >
-                    <button type="button" class="artist-save" onclick="updateArtist('${escapeHtml(pack.name)}')">Save</button>
-                </div>
-                <div class="pack-actions">
-                    <button class="btn btn-primary" onclick="showPack('${escapeHtml(pack.name)}')">
-                        View Stickers
-                    </button>
-                </div>
-            </div>
-        `)
-         .join('');
+      packsGrid.innerHTML = '';
+      packs.forEach(pack => {
+         packsGrid.appendChild(createPackCard(pack));
+      });
    } catch (error) {
       console.error('Error searching packs:', error);
       loading.style.display = 'none';
@@ -78,21 +97,13 @@ async function showPack(packName) {
    try {
       const response = await fetch(`/api/packs/${encodeURIComponent(packName)}`);
       const pack = await response.json();
-      document.getElementById('modalTitle')
-         .textContent = pack.title;
-      document.getElementById('modalSubtitle')
-         .textContent = `${pack.name} • ${pack.artist}`;
-      const stickersHtml = pack.stickers.map(sticker => {
-            const filePath = `/sticker_files/${encodeURIComponent(packName)}/${encodeURIComponent(sticker.file_path)}`;
-            return `
-                <div class="sticker-item" title="${escapeHtml(sticker.emoji || '')}">
-                    <img src="${filePath}" alt="" loading="lazy">
-                </div>
-            `;
-         })
-         .join('');
-      document.getElementById('modalStickers')
-         .innerHTML = stickersHtml;
+      document.getElementById('modalTitle').textContent = pack.title;
+      document.getElementById('modalSubtitle').textContent = `${pack.name} • ${pack.artist}`;
+      const modalStickers = document.getElementById('modalStickers');
+      modalStickers.innerHTML = '';
+      pack.stickers.forEach(sticker => {
+         modalStickers.appendChild(createStickerItem(packName, sticker, sticker.emoji));
+      });
       modal.classList.add('active');
    } catch (error) {
       console.error('Error loading pack:', error);
@@ -109,14 +120,12 @@ async function updateArtist(packName) {
          headers: {
             'Content-Type': 'application/json'
          },
-         body: JSON.stringify({
-            artist
-         })
+         body: JSON.stringify({ artist })
       });
       if (response.ok) {
-         input.style.borderColor = '#4caf50';
+         input.style.borderColor = 'var(--success)';
          setTimeout(() => {
-            input.style.borderColor = '#e0e0e0';
+            input.style.borderColor = '';
          }, 1000);
       }
    } catch (error) {
@@ -128,10 +137,3 @@ async function updateArtist(packName) {
 function closeModal() {
    modal.classList.remove('active');
 }
-
-// Close modal on outside click
-modal.addEventListener('click', (e) => {
-   if (e.target === modal) {
-      closeModal();
-   }
-});

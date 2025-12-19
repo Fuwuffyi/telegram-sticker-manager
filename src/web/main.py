@@ -4,7 +4,7 @@ from pathlib import Path
 from flask import Flask, Response, jsonify, render_template, request, send_from_directory
 from rapidfuzz import fuzz
 
-from src.config import REGISTRY_FILE, DOWNLOAD_DIR
+from src.config import REGISTRY_FILE, CUSTOM_PACKS_FILE, DOWNLOAD_DIR
 
 app: Flask = Flask(__name__)
 
@@ -22,9 +22,20 @@ def save_registry(registry: PackRegistry) -> None:
     with open(REGISTRY_FILE, 'w', encoding='utf-8') as f:
         json.dump(registry, f, ensure_ascii=False)
 
-def fuzzy_search_packs(query: str, registry: PackRegistry, limit: int = 50) -> list[dict[str, str | int | dict[str, dict[str, str | int | bool | None]]]]:
+def load_custom_packs() -> dict:
+    if CUSTOM_PACKS_FILE.exists():
+        with open(CUSTOM_PACKS_FILE, 'r', encoding='utf-8') as f:
+            return json.load(f)
+    return {}
+
+def save_custom_packs(custom_packs: dict) -> None:
+    CUSTOM_PACKS_FILE.parent.mkdir(parents=True, exist_ok=True)
+    with open(CUSTOM_PACKS_FILE, 'w', encoding='utf-8') as f:
+        json.dump(custom_packs, f, ensure_ascii=False)
+
+def fuzzy_search_packs(query: str, registry: PackRegistry, limit: int | None = None) -> list[dict[str, str | int | dict[str, dict[str, str | int | bool | None]]]]:
     if not query:
-        return [pack for pack in registry.values()][:limit]
+        return [pack for pack in registry.values()][:limit] if limit else [pack for pack in registry.values()]
     results: list[tuple[dict[str, str | int | dict[str, dict[str, str | int | bool | None]]], float]] = []
     for pack_name, pack_info in registry.items():
         # Search in pack name and title
@@ -44,7 +55,7 @@ def fuzzy_search_packs(query: str, registry: PackRegistry, limit: int = 50) -> l
             results.append((pack_info, score))
     # Sort by score
     results.sort(key=lambda x: x[1], reverse=True)
-    return [r[0] for r in results[:limit]]
+    return [r[0] for r in results[:limit]] if limit else [r[0] for r in results]
 
 def load_emoji_map(pack_name: str) -> dict[str, str]:
     pack_dir: Path = DOWNLOAD_DIR / pack_name
@@ -127,6 +138,10 @@ def index() -> str:
 def stickers_page() -> str:
     return render_template('stickers.html')
 
+@app.route('/custom-packs')
+def custom_packs_page() -> str:
+    return render_template('custom_packs.html')
+
 @app.route('/api/packs/search')
 def search_packs() -> Response:
     query: str = request.args.get('q', '')
@@ -177,12 +192,80 @@ def update_pack_artist(pack_name: str) -> tuple[Response, int] | Response:
     save_registry(registry)
     return jsonify({'success': True, 'artist': artist})
 
+@app.route('/api/packs/<pack_name>/emoji', methods=['POST'])
+def update_sticker_emoji(pack_name: str) -> tuple[Response, int] | Response:
+    data = request.get_json()
+    if not data:
+        return jsonify({'error': 'Invalid request'}), 400
+    unique_id: str = data.get('unique_id', '')
+    emojis: str = data.get('emojis', '')
+    if not unique_id:
+        return jsonify({'error': 'unique_id required'}), 400
+    emoji_map = load_emoji_map(pack_name)
+    emoji_map[unique_id] = emojis
+    save_emoji_map(pack_name, emoji_map)
+    return jsonify({'success': True, 'unique_id': unique_id, 'emojis': emojis})
+
+
 @app.route('/api/stickers/search')
 def search_stickers() -> Response:
     query: str = request.args.get('q', '')
     registry: PackRegistry = load_registry()
     results = fuzzy_search_stickers(query, registry)
     return jsonify(results)
+
+@app.route('/api/custom-packs', methods=['GET'])
+def get_custom_packs() -> Response:
+    custom_packs = load_custom_packs()
+    return jsonify(custom_packs)
+
+@app.route('/api/custom-packs', methods=['POST'])
+def create_custom_pack() -> tuple[Response, int]:
+    data = request.get_json()
+    if not data or 'name' not in data:
+        return jsonify({'error': 'Invalid request'}), 400
+    custom_packs = load_custom_packs()
+    pack_name = data['name']
+    if pack_name in custom_packs:
+        return jsonify({'error': 'Pack already exists'}), 400
+    custom_packs[pack_name] = {
+        'name': pack_name,
+        'title': data.get('title', pack_name),
+        'stickers': []
+    }
+    save_custom_packs(custom_packs)
+    return jsonify({'success': True, 'pack': custom_packs[pack_name]}), 201
+
+@app.route('/api/custom-packs/<pack_name>', methods=['GET'])
+def get_custom_pack(pack_name: str) -> tuple[Response, int] | Response:
+    custom_packs = load_custom_packs()
+    if pack_name not in custom_packs:
+        return jsonify({'error': 'Pack not found'}), 404
+    return jsonify(custom_packs[pack_name])
+
+@app.route('/api/custom-packs/<pack_name>', methods=['PUT'])
+def update_custom_pack(pack_name: str) -> tuple[Response, int] | Response:
+    data = request.get_json()
+    if not data:
+        return jsonify({'error': 'Invalid request'}), 400
+    custom_packs = load_custom_packs()
+    if pack_name not in custom_packs:
+        return jsonify({'error': 'Pack not found'}), 404
+    if 'title' in data:
+        custom_packs[pack_name]['title'] = data['title']
+    if 'stickers' in data:
+        custom_packs[pack_name]['stickers'] = data['stickers']
+    save_custom_packs(custom_packs)
+    return jsonify({'success': True, 'pack': custom_packs[pack_name]})
+
+@app.route('/api/custom-packs/<pack_name>', methods=['DELETE'])
+def delete_custom_pack(pack_name: str) -> tuple[Response, int] | Response:
+    custom_packs = load_custom_packs()
+    if pack_name not in custom_packs:
+        return jsonify({'error': 'Pack not found'}), 404
+    del custom_packs[pack_name]
+    save_custom_packs(custom_packs)
+    return jsonify({'success': True})
 
 @app.route('/sticker_files/<pack_name>/<filename>')
 def serve_sticker(pack_name: str, filename: str) -> Response:

@@ -14,6 +14,7 @@
          <nav class="nav" aria-label="Primary">
             <a href="/">Packs</a>
             <a href="/stickers" class="active" aria-current="page">Stickers</a>
+            <a href="/custom-packs">Custom Packs</a>
          </nav>
          <div class="search-box">
             <input type="text" class="search-input" id="searchInput" placeholder="Search stickers" autocomplete="off">
@@ -26,6 +27,39 @@
             <p>Try a different search term</p>
          </div>
       </main>
+      <!-- Emoji Edit Modal -->
+      <div id="emojiModal" class="modal" role="dialog" aria-modal="true">
+         <div class="modal-content modal-small">
+            <div class="modal-header">
+               <div class="modal-title">Edit Sticker Emojis</div>
+               <button class="close-btn" type="button" aria-label="Close dialog" data-action="close-emoji-modal">&times;</button>
+            </div>
+            <div class="modal-body">
+               <div class="emoji-preview">
+                  <img id="emojiEditPreview" alt="Sticker preview">
+               </div>
+               <label for="emojiInput">Emojis (you can add multiple):</label>
+               <input type="text" id="emojiInput" class="emoji-input" placeholder="Enter emojis...">
+               <button class="btn btn-primary" data-action="save-emoji">Save Emojis</button>
+            </div>
+         </div>
+      </div>
+      <!-- Sticker Card Template -->
+      <template id="stickerCardTemplate">
+         <div class="sticker-card">
+            <div class="sticker-preview">
+               <img data-field="image" alt="" loading="lazy">
+            </div>
+            <div class="sticker-info">
+               <div class="sticker-emoji" data-field="emoji"></div>
+               <div class="sticker-pack-name" data-field="pack_title"></div>
+               <div class="sticker-artist" data-field="artist"></div>
+            </div>
+            <div class="sticker-actions">
+               <button class="btn-icon" data-action="edit-emoji" title="Edit emoji">✏️</button>
+            </div>
+         </div>
+      </template>
       <script src="{{ url_for('static', filename='stickers.js') }}" defer></script>
    </body>
 </html>
