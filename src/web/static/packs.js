@@ -73,6 +73,7 @@ async function searchPacks(query) {
    loading.style.display = 'block';
    packsGrid.style.display = 'none';
    emptyState.style.display = 'none';
+   resultsCount.style.display = 'none';
    try {
       const response = await fetch(`/api/packs/search?q=${encodeURIComponent(query)}`);
       const packs = await response.json();
@@ -81,6 +82,8 @@ async function searchPacks(query) {
          emptyState.style.display = 'block';
          return;
       }
+      resultsCount.style.display = 'block';
+      resultsCount.textContent = `Found ${packs.length} sticker pack${packs.length !== 1 ? 's' : ''}`;
       packsGrid.style.display = 'grid';
       packsGrid.innerHTML = '';
       packs.forEach(pack => {
