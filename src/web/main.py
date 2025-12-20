@@ -69,23 +69,50 @@ def custom_packs_page() -> str:
 @app.route('/api/packs/search')
 def search_packs() -> Response:
     query: str = request.args.get('q', '')
-    packs: list[StickerPackRecord] = db.search_sticker_packs(query)
+    page: int = int(request.args.get('page', 1))
+    per_page: int = int(request.args.get('per_page', 50))
+    packs, total = db.search_sticker_packs(query, page, per_page)
     filtered_packs: list[StickerPackRecord] = fuzzy_search_packs(query, packs)
-    return jsonify([dict(pack) for pack in filtered_packs])
+    # Get thumbnails for each pack
+    packs_with_thumbnails = []
+    for pack in filtered_packs:
+        thumbnails = db.get_pack_thumbnail_stickers(pack['name'], limit=4)
+        pack_dict = dict(pack)
+        pack_dict['thumbnails'] = [
+            {
+                'file_path': s['file_path'],
+                'emoji': s['emoji']
+            }
+            for s in thumbnails
+        ]
+        packs_with_thumbnails.append(pack_dict)
+    return jsonify({
+        'packs': packs_with_thumbnails,
+        'total': total,
+        'page': page,
+        'per_page': per_page,
+        'total_pages': (total + per_page - 1) // per_page
+    })
 
 @app.route('/api/packs/<pack_name>')
 def get_pack(pack_name: str) -> tuple[Response, int] | Response:
     pack_info = db.get_sticker_pack(pack_name)
     if not pack_info:
         return jsonify({'error': 'Pack not found'}), 404
-    stickers = db.get_pack_stickers(pack_name)
-    response_pack: dict[str, str | int | list[dict[str, str | None]]] = {
+    page: int = int(request.args.get('page', 1))
+    per_page: int = int(request.args.get('per_page', 100))
+    stickers, total = db.get_pack_stickers(pack_name, page, per_page)
+    response_pack = {
         'name': pack_info['name'],
         'title': pack_info['title'],
         'artist': pack_info['artist'],
         'last_update': pack_info['last_update'],
         'sticker_count': pack_info['sticker_count'],
-        'stickers': [dict(s) for s in stickers]
+        'stickers': [dict(s) for s in stickers],
+        'total': total,
+        'page': page,
+        'per_page': per_page,
+        'total_pages': (total + per_page - 1) // per_page
     }
     return jsonify(response_pack)
 
@@ -104,13 +131,12 @@ def delete_pack(pack_name: str) -> tuple[Response, int] | Response:
             try:
                 shutil.rmtree(pack_dir)
             except Exception as e:
-                # Pack deleted from DB but files remain - log but don't fail
+                # Pack deleted from DB but files remain
                 app.logger.warning(f"Deleted pack from DB but failed to delete files: {e}")
         return jsonify({'success': True})
     except Exception as e:
         app.logger.error(f"Error deleting pack: {e}", exc_info=True)
         return jsonify({'error': f'Internal error: {str(e)}'}), 500
-
 
 @app.route('/api/packs/<pack_name>/artist', methods=['POST'])
 def update_pack_artist(pack_name: str) -> tuple[Response, int] | Response:
@@ -146,7 +172,9 @@ def update_sticker_emoji(pack_name: str) -> tuple[Response, int] | Response:
 @app.route('/api/stickers/search')
 def search_stickers() -> Response:
     query: str = request.args.get('q', '')
-    stickers: list[StickerSearchResult] = db.search_stickers(query)
+    page: int = int(request.args.get('page', 1))
+    per_page: int = int(request.args.get('per_page', 100))
+    stickers, total = db.search_stickers(query, page, per_page)
     filtered_stickers: list[StickerSearchResult] = fuzzy_search_stickers(query, stickers)
     results: list[dict[str, str | dict[str, str]]] = [
         {
@@ -162,20 +190,35 @@ def search_stickers() -> Response:
         }
         for s in filtered_stickers
     ]
-    return jsonify(results)
+    return jsonify({
+        'stickers': results,
+        'total': total,
+        'page': page,
+        'per_page': per_page,
+        'total_pages': (total + per_page - 1) // per_page
+    })
 
 @app.route('/api/custom-packs', methods=['GET'])
 def get_custom_packs() -> Response:
-    packs_with_counts: list[tuple[dict[str, str], int]] = db.get_all_custom_packs()
-    result: dict[str, dict[str, str | list[CustomPackSticker]]] = {
-        pack['name']: {
+    page: int = int(request.args.get('page', 1))
+    per_page: int = int(request.args.get('per_page', 50))
+    packs_with_counts, total = db.get_all_custom_packs(page, per_page)
+    result: dict[str, dict[str, str | list[CustomPackSticker] | int]] = {}
+    for pack, count in packs_with_counts:
+        stickers, _ = db.get_custom_pack_stickers(pack['name'], page=1, per_page=4)
+        result[pack['name']] = {
             'name': pack['name'],
             'title': pack['title'],
-            'stickers': db.get_custom_pack_stickers(pack['name'])
+            'stickers': stickers,
+            'sticker_count': count
         }
-        for pack, _ in packs_with_counts
-    }
-    return jsonify(result)
+    return jsonify({
+        'packs': result,
+        'total': total,
+        'page': page,
+        'per_page': per_page,
+        'total_pages': (total + per_page - 1) // per_page
+    })
 
 @app.route('/api/custom-packs', methods=['POST'])
 def create_custom_pack() -> tuple[Response, int]:
@@ -194,11 +237,17 @@ def get_custom_pack(pack_name: str) -> tuple[Response, int] | Response:
     pack = db.get_custom_pack(pack_name)
     if not pack:
         return jsonify({'error': 'Pack not found'}), 404
-    stickers: list[CustomPackSticker] = db.get_custom_pack_stickers(pack_name)
+    page: int = int(request.args.get('page', 1))
+    per_page: int = int(request.args.get('per_page', 100))
+    stickers, total = db.get_custom_pack_stickers(pack_name, page, per_page)
     return jsonify({
         'name': pack['name'],
         'title': pack['title'],
-        'stickers': [dict(s) for s in stickers]
+        'stickers': [dict(s) for s in stickers],
+        'total': total,
+        'page': page,
+        'per_page': per_page,
+        'total_pages': (total + per_page - 1) // per_page
     })
 
 @app.route('/api/custom-packs/<pack_name>', methods=['PUT'])

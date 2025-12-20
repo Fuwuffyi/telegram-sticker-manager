@@ -10,6 +10,11 @@ const packCardTemplate = document.getElementById('packCardTemplate');
 const stickerItemTemplate = document.getElementById('stickerItemTemplate');
 
 let currentPackName = null;
+let currentPage = 1;
+let totalPages = 1;
+let currentQuery = '';
+let currentModalPage = 1;
+let totalModalPages = 1;
 
 // Initial load
 searchPacks('');
@@ -17,12 +22,27 @@ searchPacks('');
 // Search on input
 searchInput.addEventListener('input', (e) => {
    clearTimeout(searchTimeout);
+   currentPage = 1;
    searchTimeout = setTimeout(() => {
       searchPacks(e.target.value);
    }, 300);
 });
 
-// Event delegation for modal close and actions
+// Scroll pagination
+let isLoadingMore = false;
+window.addEventListener('scroll', () => {
+   if (isLoadingMore || currentPage >= totalPages) return;
+   const scrollTop = window.scrollY;
+   const windowHeight = window.innerHeight;
+   const docHeight = document.documentElement.scrollHeight;
+   if (scrollTop + windowHeight >= docHeight - 500) {
+      isLoadingMore = true;
+      currentPage++;
+      searchPacks(currentQuery, true);
+   }
+});
+
+// Event delegation
 document.addEventListener('click', async (e) => {
    const action = e.target.dataset.action;
    if (action === 'close-modal' || (e.target === modal)) {
@@ -31,6 +51,8 @@ document.addEventListener('click', async (e) => {
       await exportAllPacks();
    } else if (action === 'export-current-pack') {
       await exportCurrentPack();
+   } else if (action === 'load-more-stickers') {
+      await loadMoreStickers();
    }
 });
 
@@ -48,6 +70,19 @@ function escapeHtml(text) {
 function createPackCard(pack) {
    const clone = packCardTemplate.content.cloneNode(true);
    const card = clone.querySelector('.pack-card');
+   // Add thumbnails if available
+   if (pack.thumbnails && pack.thumbnails.length > 0) {
+      const thumbnailContainer = document.createElement('div');
+      thumbnailContainer.className = 'pack-thumbnail';
+      pack.thumbnails.forEach(thumb => {
+         const img = document.createElement('img');
+         img.src = `/sticker_files/${encodeURIComponent(pack.name)}/${encodeURIComponent(thumb.file_path)}`;
+         img.alt = thumb.emoji || '';
+         img.loading = 'lazy';
+         thumbnailContainer.appendChild(img);
+      });
+      card.insertBefore(thumbnailContainer, card.firstChild);
+   }
    // Set text content
    clone.querySelector('[data-field="title"]').textContent = pack.title;
    clone.querySelector('[data-field="name"]').textContent = pack.name;
@@ -64,6 +99,12 @@ function createPackCard(pack) {
    clone.querySelector('[data-action="view-stickers"]').addEventListener('click', () => {
       showPack(pack.name);
    });
+   // Add delete button
+   clone.querySelector('[data-action="delete-pack"]').addEventListener('click', async () => {
+      if (confirm(`Delete pack "${pack.title}"? This will permanently delete all ${pack.sticker_count} stickers.`)) {
+         await deletePack(pack.name);
+      }
+   });
    return clone;
 }
 
@@ -76,38 +117,51 @@ function createStickerItem(packName, sticker, emoji) {
    return clone;
 }
 
-async function searchPacks(query) {
-   loading.style.display = 'block';
-   packsGrid.style.display = 'none';
-   emptyState.style.display = 'none';
-   resultsCount.style.display = 'none';
+async function searchPacks(query, append = false) {
+   currentQuery = query;
+   if (!append) {
+      loading.style.display = 'block';
+      packsGrid.style.display = 'none';
+      emptyState.style.display = 'none';
+      resultsCount.style.display = 'none';
+      currentPage = 1;
+   }
    try {
-      const response = await fetch(`/api/packs/search?q=${encodeURIComponent(query)}`);
-      const packs = await response.json();
+      const response = await fetch(`/api/packs/search?q=${encodeURIComponent(query)}&page=${currentPage}&per_page=50`);
+      const data = await response.json();
       loading.style.display = 'none';
-      if (packs.length === 0) {
+      isLoadingMore = false;
+      totalPages = data.total_pages;
+      if (data.packs.length === 0 && !append) {
          emptyState.style.display = 'block';
          return;
       }
-      resultsCount.style.display = 'block';
-      resultsCount.textContent = `Found ${packs.length} sticker pack${packs.length !== 1 ? 's' : ''}`;
-      packsGrid.style.display = 'grid';
-      packsGrid.innerHTML = '';
-      packs.forEach(pack => {
+      if (!append) {
+         resultsCount.style.display = 'block';
+         resultsCount.textContent = `Found ${data.total} sticker pack${data.total !== 1 ? 's' : ''}`;
+         packsGrid.style.display = 'grid';
+         packsGrid.innerHTML = '';
+      }
+      data.packs.forEach(pack => {
          packsGrid.appendChild(createPackCard(pack));
       });
    } catch (error) {
       console.error('Error searching packs:', error);
       loading.style.display = 'none';
-      emptyState.style.display = 'block';
+      isLoadingMore = false;
+      if (!append) {
+         emptyState.style.display = 'block';
+      }
    }
 }
 
 async function showPack(packName) {
    currentPackName = packName;
+   currentModalPage = 1;
    try {
-      const response = await fetch(`/api/packs/${encodeURIComponent(packName)}`);
+      const response = await fetch(`/api/packs/${encodeURIComponent(packName)}?page=1&per_page=100`);
       const pack = await response.json();
+      totalModalPages = pack.total_pages;
       document.getElementById('modalTitle').textContent = pack.title;
       document.getElementById('modalSubtitle').textContent = `${pack.name} • ${pack.artist}`;
       const modalStickers = document.getElementById('modalStickers');
@@ -115,10 +169,44 @@ async function showPack(packName) {
       pack.stickers.forEach(sticker => {
          modalStickers.appendChild(createStickerItem(packName, sticker, sticker.emoji));
       });
+      // Add load more button if there are more pages
+      if (totalModalPages > 1) {
+         const loadMoreBtn = document.createElement('button');
+         loadMoreBtn.className = 'btn btn-primary load-more-btn';
+         loadMoreBtn.textContent = `Load More (${currentModalPage}/${totalModalPages})`;
+         loadMoreBtn.dataset.action = 'load-more-stickers';
+         modalStickers.appendChild(loadMoreBtn);
+      }
       modal.classList.add('active');
    } catch (error) {
       console.error('Error loading pack:', error);
       alert('Failed to load pack stickers');
+   }
+}
+
+async function loadMoreStickers() {
+   if (!currentPackName || currentModalPage >= totalModalPages) return;
+   currentModalPage++;
+   try {
+      const response = await fetch(`/api/packs/${encodeURIComponent(currentPackName)}?page=${currentModalPage}&per_page=100`);
+      const pack = await response.json();
+      const modalStickers = document.getElementById('modalStickers');
+      const loadMoreBtn = modalStickers.querySelector('.load-more-btn');
+      if (loadMoreBtn) loadMoreBtn.remove();
+      pack.stickers.forEach(sticker => {
+         modalStickers.appendChild(createStickerItem(currentPackName, sticker, sticker.emoji));
+      });
+      // Re-add load more button if there are more pages
+      if (currentModalPage < totalModalPages) {
+         const newLoadMoreBtn = document.createElement('button');
+         newLoadMoreBtn.className = 'btn btn-primary load-more-btn';
+         newLoadMoreBtn.textContent = `Load More (${currentModalPage}/${totalModalPages})`;
+         newLoadMoreBtn.dataset.action = 'load-more-stickers';
+         modalStickers.appendChild(newLoadMoreBtn);
+      }
+   } catch (error) {
+      console.error('Error loading more stickers:', error);
+      alert('Failed to load more stickers');
    }
 }
 
@@ -142,6 +230,25 @@ async function updateArtist(packName) {
    } catch (error) {
       console.error('Error updating artist:', error);
       alert('Failed to update artist');
+   }
+}
+
+async function deletePack(packName) {
+   try {
+      const response = await fetch(`/api/packs/${encodeURIComponent(packName)}`, {
+         method: 'DELETE'
+      });
+      if (response.ok) {
+         // Refresh the current view
+         currentPage = 1;
+         await searchPacks(currentQuery);
+      } else {
+         const error = await response.json();
+         alert(error.error || 'Failed to delete pack');
+      }
+   } catch (error) {
+      console.error('Error deleting pack:', error);
+      alert('Failed to delete pack');
    }
 }
 
@@ -193,4 +300,6 @@ async function exportCurrentPack() {
 function closeModal() {
    modal.classList.remove('active');
    currentPackName = null;
+   currentModalPage = 1;
+   totalModalPages = 1;
 }

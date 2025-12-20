@@ -11,6 +11,10 @@ const emojiEditPreview = document.getElementById('emojiEditPreview');
 const stickerCardTemplate = document.getElementById('stickerCardTemplate');
 
 let currentEditSticker = null;
+let currentPage = 1;
+let totalPages = 1;
+let currentQuery = '';
+let isLoadingMore = false;
 
 // Initial load
 searchStickers('');
@@ -18,9 +22,23 @@ searchStickers('');
 // Search on input
 searchInput.addEventListener('input', (e) => {
    clearTimeout(searchTimeout);
+   currentPage = 1;
    searchTimeout = setTimeout(() => {
       searchStickers(e.target.value);
    }, 300);
+});
+
+// Scroll pagination
+window.addEventListener('scroll', () => {
+   if (isLoadingMore || currentPage >= totalPages) return;
+   const scrollTop = window.scrollY;
+   const windowHeight = window.innerHeight;
+   const docHeight = document.documentElement.scrollHeight;
+   if (scrollTop + windowHeight >= docHeight - 500) {
+      isLoadingMore = true;
+      currentPage++;
+      searchStickers(currentQuery, true);
+   }
 });
 
 // Event delegation
@@ -63,30 +81,41 @@ function createStickerCard(item) {
    return clone;
 }
 
-async function searchStickers(query) {
-   loading.style.display = 'block';
-   stickersGrid.style.display = 'none';
-   emptyState.style.display = 'none';
-   resultsCount.style.display = 'none';
+async function searchStickers(query, append = false) {
+   currentQuery = query;
+   if (!append) {
+      loading.style.display = 'block';
+      stickersGrid.style.display = 'none';
+      emptyState.style.display = 'none';
+      resultsCount.style.display = 'none';
+      currentPage = 1;
+   }
    try {
-      const response = await fetch(`/api/stickers/search?q=${encodeURIComponent(query)}`);
-      const stickers = await response.json();
+      const response = await fetch(`/api/stickers/search?q=${encodeURIComponent(query)}&page=${currentPage}&per_page=100`);
+      const data = await response.json();
       loading.style.display = 'none';
-      if (stickers.length === 0) {
+      isLoadingMore = false;
+      totalPages = data.total_pages;
+      if (data.stickers.length === 0 && !append) {
          emptyState.style.display = 'block';
          return;
       }
-      resultsCount.style.display = 'block';
-      resultsCount.textContent = `Found ${stickers.length} sticker${stickers.length !== 1 ? 's' : ''}`;
-      stickersGrid.style.display = 'grid';
-      stickersGrid.innerHTML = '';
-      stickers.forEach(item => {
+      if (!append) {
+         resultsCount.style.display = 'block';
+         resultsCount.textContent = `Found ${data.total} sticker${data.total !== 1 ? 's' : ''}`;
+         stickersGrid.style.display = 'grid';
+         stickersGrid.innerHTML = '';
+      }
+      data.stickers.forEach(item => {
          stickersGrid.appendChild(createStickerCard(item));
       });
    } catch (error) {
       console.error('Error searching stickers:', error);
       loading.style.display = 'none';
-      emptyState.style.display = 'block';
+      isLoadingMore = false;
+      if (!append) {
+         emptyState.style.display = 'block';
+      }
    }
 }
 
@@ -124,6 +153,7 @@ async function saveEmoji() {
          currentEditSticker.emoji = emojis;
          closeEmojiModal();
          // Refresh the search to show updated emojis
+         currentPage = 1;
          searchStickers(searchInput.value);
       } else {
          alert('Failed to save emoji');
@@ -133,3 +163,4 @@ async function saveEmoji() {
       alert('Failed to save emoji');
    }
 }
+
