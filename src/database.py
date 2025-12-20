@@ -163,6 +163,15 @@ class Database:
             conn.commit()
             return cursor.rowcount > 0
 
+    def delete_sticker_pack(self, pack_name: str) -> bool:
+        try:
+            with self._connect() as conn:
+                cursor: sqlite3.Cursor = conn.execute("DELETE FROM sticker_packs WHERE name = ?", (pack_name,))
+                conn.commit()
+                return cursor.rowcount > 0
+        except Exception:
+            return False
+
     # Sticker Operations
     def upsert_sticker(self, pack_name: str, sticker: StickerRecord) -> None:
         with self._connect() as conn:

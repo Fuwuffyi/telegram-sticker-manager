@@ -1,3 +1,5 @@
+import shutil
+
 from pathlib import Path
 
 from flask import Flask, Response, jsonify, make_response, render_template, request, send_from_directory
@@ -31,7 +33,7 @@ def fuzzy_search_packs(query: str, packs: list[StickerPackRecord]) -> list[Stick
 
 def fuzzy_search_stickers(query: str, stickers: list[StickerSearchResult]) -> list[StickerSearchResult]:
     if not query:
-        return stickers[:100]
+        return stickers
     results: list[tuple[StickerSearchResult, float]] = []
     for sticker in stickers:
         # Calculate scores for different fields
@@ -50,7 +52,7 @@ def fuzzy_search_stickers(query: str, stickers: list[StickerSearchResult]) -> li
             results.append((sticker, score))
     # Sort by score
     results.sort(key=lambda x: x[1], reverse=True)
-    return [r[0] for r in results[:200]]
+    return [r[0] for r in results]
 
 @app.route('/')
 def index() -> str:
@@ -85,8 +87,29 @@ def get_pack(pack_name: str) -> tuple[Response, int] | Response:
         'sticker_count': pack_info['sticker_count'],
         'stickers': [dict(s) for s in stickers]
     }
-
     return jsonify(response_pack)
+
+@app.route('/api/packs/<pack_name>', methods=['DELETE'])
+def delete_pack(pack_name: str) -> tuple[Response, int] | Response:
+    try:
+        if not db.get_sticker_pack(pack_name):
+            return jsonify({'error': 'Pack not found'}), 404
+        # Delete from database first
+        success: bool = db.delete_sticker_pack(pack_name)
+        if not success:
+            return jsonify({'error': 'Failed to delete pack from database'}), 500
+        # Delete pack directory and files
+        pack_dir: Path = DOWNLOAD_DIR / pack_name
+        if pack_dir.exists():
+            try:
+                shutil.rmtree(pack_dir)
+            except Exception as e:
+                # Pack deleted from DB but files remain - log but don't fail
+                app.logger.warning(f"Deleted pack from DB but failed to delete files: {e}")
+        return jsonify({'success': True})
+    except Exception as e:
+        app.logger.error(f"Error deleting pack: {e}", exc_info=True)
+        return jsonify({'error': f'Internal error: {str(e)}'}), 500
 
 
 @app.route('/api/packs/<pack_name>/artist', methods=['POST'])
