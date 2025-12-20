@@ -25,10 +25,6 @@ body {
    padding: 20px;
 }
 
-.hidden {
-   display: none;
-}
-
 .container {
    max-width: 1400px;
    margin: 0 auto;
@@ -170,6 +166,18 @@ body {
    font-family: "Roboto Mono", monospace;
 }
 
+.pack-link {
+   display: inline-block;
+   margin-top: 8px;
+   font-size: 0.875rem;
+   color: var(--accent);
+   text-decoration: none;
+}
+
+.pack-link:hover {
+   text-decoration: underline;
+}
+
 .pack-info {
    display: flex;
    gap: 16px;
@@ -186,7 +194,7 @@ body {
 }
 
 .artist-input {
-   flex: 1 1 auto;
+   flex: 1;
    min-width: 0;
    padding: 8px 12px;
    border: 1px solid var(--border);

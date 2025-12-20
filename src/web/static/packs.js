@@ -7,7 +7,9 @@ const modal = document.getElementById('modal');
 const resultsCount = document.getElementById('resultsCount');
 
 const packCardTemplate = document.getElementById('packCardTemplate');
+const thumbnailTemplate = document.getElementById('thumbnailTemplate');
 const stickerItemTemplate = document.getElementById('stickerItemTemplate');
+const loadMoreTemplate = document.getElementById('loadMoreTemplate');
 
 let currentPackName = null;
 let currentPage = 1;
@@ -15,21 +17,16 @@ let totalPages = 1;
 let currentQuery = '';
 let currentModalPage = 1;
 let totalModalPages = 1;
+let isLoadingMore = false;
 
-// Initial load
 searchPacks('');
 
-// Search on input
 searchInput.addEventListener('input', (e) => {
    clearTimeout(searchTimeout);
    currentPage = 1;
-   searchTimeout = setTimeout(() => {
-      searchPacks(e.target.value);
-   }, 300);
+   searchTimeout = setTimeout(() => searchPacks(e.target.value), 300);
 });
 
-// Scroll pagination
-let isLoadingMore = false;
 window.addEventListener('scroll', () => {
    if (isLoadingMore || currentPage >= totalPages) return;
    const scrollTop = window.scrollY;
@@ -42,7 +39,6 @@ window.addEventListener('scroll', () => {
    }
 });
 
-// Event delegation
 document.addEventListener('click', async (e) => {
    const action = e.target.dataset.action;
    if (action === 'close-modal' || (e.target === modal)) {
@@ -57,58 +53,32 @@ document.addEventListener('click', async (e) => {
 });
 
 function formatDate(timestamp) {
-   const date = new Date(timestamp * 1000);
-   return date.toLocaleDateString();
-}
-
-function escapeHtml(text) {
-   const div = document.createElement('div');
-   div.textContent = text;
-   return div.innerHTML;
+   return new Date(timestamp * 1000).toLocaleDateString();
 }
 
 function createPackCard(pack) {
    const clone = packCardTemplate.content.cloneNode(true);
    const card = clone.querySelector('.pack-card');
-   // Add thumbnails if available
-   if (pack.thumbnails && pack.thumbnails.length > 0) {
-      const thumbnailContainer = document.createElement('div');
-      thumbnailContainer.className = 'pack-thumbnail';
+   if (pack.thumbnails?.length) {
+      const thumbnailContainer = clone.querySelector('.pack-thumbnail');
       pack.thumbnails.forEach(thumb => {
-         const img = document.createElement('img');
+         const imgClone = thumbnailTemplate.content.cloneNode(true);
+         const img = imgClone.querySelector('img');
          img.src = `/sticker_files/${encodeURIComponent(pack.name)}/${encodeURIComponent(thumb.file_path)}`;
          img.alt = thumb.emoji || '';
-         img.loading = 'lazy';
-         thumbnailContainer.appendChild(img);
+         thumbnailContainer.appendChild(imgClone);
       });
-      card.insertBefore(thumbnailContainer, card.firstChild);
    }
-   // Set text content
    clone.querySelector('[data-field="title"]').textContent = pack.title;
    clone.querySelector('[data-field="name"]').textContent = pack.name;
+   clone.querySelector('[data-field="link"]').href = `https://t.me/addstickers/${pack.name}`;
    clone.querySelector('[data-field="sticker_count"]').textContent = `${pack.sticker_count} stickers`;
    clone.querySelector('[data-field="last_update"]').textContent = formatDate(pack.last_update);
-   // Add Telegram pack link
-   const packHeader = clone.querySelector('.pack-header');
-   const packLink = document.createElement('a');
-   packLink.className = 'pack-link';
-   packLink.href = `https://t.me/addstickers/${pack.name}`;
-   packLink.target = '_blank';
-   packLink.rel = 'noopener noreferrer';
-   packLink.textContent = 'Open in Telegram';
-   packHeader.appendChild(packLink);
-   // Set artist input
    const artistInput = clone.querySelector('[data-field="artist-input"]');
    artistInput.value = pack.artist || 'Unknown';
    artistInput.id = `artist-${pack.name}`;
-   // Add event listeners
-   clone.querySelector('[data-action="save-artist"]').addEventListener('click', () => {
-      updateArtist(pack.name);
-   });
-   clone.querySelector('[data-action="view-stickers"]').addEventListener('click', () => {
-      showPack(pack.name);
-   });
-   // Add delete button
+   clone.querySelector('[data-action="save-artist"]').addEventListener('click', () => updateArtist(pack.name));
+   clone.querySelector('[data-action="view-stickers"]').addEventListener('click', () => showPack(pack.name));
    clone.querySelector('[data-action="delete-pack"]').addEventListener('click', async () => {
       if (confirm(`Delete pack "${pack.title}"? This will permanently delete all ${pack.sticker_count} stickers.`)) {
          await deletePack(pack.name);
@@ -117,12 +87,17 @@ function createPackCard(pack) {
    return clone;
 }
 
-function createStickerItem(packName, sticker, emoji) {
+function createStickerItem(packName, sticker) {
    const clone = stickerItemTemplate.content.cloneNode(true);
    const img = clone.querySelector('[data-field="image"]');
-   const filePath = `/sticker_files/${encodeURIComponent(packName)}/${encodeURIComponent(sticker.file_path)}`;
-   img.src = filePath;
-   img.title = emoji || '';
+   img.src = `/sticker_files/${encodeURIComponent(packName)}/${encodeURIComponent(sticker.file_path)}`;
+   img.title = sticker.emoji || '';
+   return clone;
+}
+
+function createLoadMoreButton(current, total) {
+   const clone = loadMoreTemplate.content.cloneNode(true);
+   clone.querySelector('[data-field="text"]').textContent = `Load More (${current}/${total})`;
    return clone;
 }
 
@@ -151,16 +126,12 @@ async function searchPacks(query, append = false) {
          packsGrid.style.display = 'grid';
          packsGrid.innerHTML = '';
       }
-      data.packs.forEach(pack => {
-         packsGrid.appendChild(createPackCard(pack));
-      });
+      data.packs.forEach(pack => packsGrid.appendChild(createPackCard(pack)));
    } catch (error) {
       console.error('Error searching packs:', error);
       loading.style.display = 'none';
       isLoadingMore = false;
-      if (!append) {
-         emptyState.style.display = 'block';
-      }
+      if (!append) emptyState.style.display = 'block';
    }
 }
 
@@ -175,16 +146,9 @@ async function showPack(packName) {
       document.getElementById('modalSubtitle').textContent = `${pack.name} • ${pack.artist}`;
       const modalStickers = document.getElementById('modalStickers');
       modalStickers.innerHTML = '';
-      pack.stickers.forEach(sticker => {
-         modalStickers.appendChild(createStickerItem(packName, sticker, sticker.emoji));
-      });
-      // Add load more button if there are more pages
+      pack.stickers.forEach(sticker => modalStickers.appendChild(createStickerItem(packName, sticker)));
       if (totalModalPages > 1) {
-         const loadMoreBtn = document.createElement('button');
-         loadMoreBtn.className = 'btn btn-primary load-more-btn';
-         loadMoreBtn.textContent = `Load More (${currentModalPage}/${totalModalPages})`;
-         loadMoreBtn.dataset.action = 'load-more-stickers';
-         modalStickers.appendChild(loadMoreBtn);
+         modalStickers.appendChild(createLoadMoreButton(currentModalPage, totalModalPages));
       }
       modal.classList.add('active');
    } catch (error) {
@@ -202,16 +166,9 @@ async function loadMoreStickers() {
       const modalStickers = document.getElementById('modalStickers');
       const loadMoreBtn = modalStickers.querySelector('.load-more-btn');
       if (loadMoreBtn) loadMoreBtn.remove();
-      pack.stickers.forEach(sticker => {
-         modalStickers.appendChild(createStickerItem(currentPackName, sticker, sticker.emoji));
-      });
-      // Re-add load more button if there are more pages
+      pack.stickers.forEach(sticker => modalStickers.appendChild(createStickerItem(currentPackName, sticker)));
       if (currentModalPage < totalModalPages) {
-         const newLoadMoreBtn = document.createElement('button');
-         newLoadMoreBtn.className = 'btn btn-primary load-more-btn';
-         newLoadMoreBtn.textContent = `Load More (${currentModalPage}/${totalModalPages})`;
-         newLoadMoreBtn.dataset.action = 'load-more-stickers';
-         modalStickers.appendChild(newLoadMoreBtn);
+         modalStickers.appendChild(createLoadMoreButton(currentModalPage, totalModalPages));
       }
    } catch (error) {
       console.error('Error loading more stickers:', error);
@@ -225,16 +182,12 @@ async function updateArtist(packName) {
    try {
       const response = await fetch(`/api/packs/${encodeURIComponent(packName)}/artist`, {
          method: 'POST',
-         headers: {
-            'Content-Type': 'application/json'
-         },
+         headers: { 'Content-Type': 'application/json' },
          body: JSON.stringify({ artist })
       });
       if (response.ok) {
          input.style.borderColor = 'var(--success)';
-         setTimeout(() => {
-            input.style.borderColor = '';
-         }, 1000);
+         setTimeout(() => input.style.borderColor = '', 1000);
       }
    } catch (error) {
       console.error('Error updating artist:', error);
@@ -244,11 +197,8 @@ async function updateArtist(packName) {
 
 async function deletePack(packName) {
    try {
-      const response = await fetch(`/api/packs/${encodeURIComponent(packName)}`, {
-         method: 'DELETE'
-      });
+      const response = await fetch(`/api/packs/${encodeURIComponent(packName)}`, { method: 'DELETE' });
       if (response.ok) {
-         // Refresh the current view
          currentPage = 1;
          await searchPacks(currentQuery);
       } else {

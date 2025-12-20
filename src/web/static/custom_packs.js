@@ -5,8 +5,11 @@ const createModal = document.getElementById('createModal');
 const editModal = document.getElementById('editModal');
 
 const customPackCardTemplate = document.getElementById('customPackCardTemplate');
+const editableStickerTemplate = document.getElementById('editableStickerTemplate');
 const selectableStickerTemplate = document.getElementById('selectableStickerTemplate');
 const selectablePackTemplate = document.getElementById('selectablePackTemplate');
+const loadMoreTemplate = document.getElementById('loadMoreTemplate');
+const loadingTemplate = document.getElementById('loadingTemplate');
 
 let currentEditingPack = null;
 let currentPackStickers = [];
@@ -23,10 +26,8 @@ let stickerSearchTotal = 1;
 let packSearchPage = 1;
 let packSearchTotal = 1;
 
-// Load custom packs on page load
 loadCustomPacks();
 
-// Scroll pagination
 window.addEventListener('scroll', () => {
    if (isLoadingMore || currentPage >= totalPages) return;
    const scrollTop = window.scrollY;
@@ -39,7 +40,6 @@ window.addEventListener('scroll', () => {
    }
 });
 
-// Event delegation
 document.addEventListener('click', async (e) => {
    const action = e.target.dataset.action;
    if (action === 'create-pack') {
@@ -63,7 +63,6 @@ document.addEventListener('click', async (e) => {
    }
 });
 
-// Search inputs
 document.getElementById('stickerSearchInput')?.addEventListener('input', (e) => {
    clearTimeout(searchTimeout);
    stickerSearchPage = 1;
@@ -75,12 +74,6 @@ document.getElementById('packSearchInput')?.addEventListener('input', (e) => {
    packSearchPage = 1;
    searchTimeout = setTimeout(() => searchPacksToAdd(e.target.value), 300);
 });
-
-function escapeHtml(text) {
-   const div = document.createElement('div');
-   div.textContent = text;
-   return div.innerHTML;
-}
 
 async function loadCustomPacks(append = false) {
    if (!append) {
@@ -96,24 +89,23 @@ async function loadCustomPacks(append = false) {
       loading.style.display = 'none';
       isLoadingMore = false;
       totalPages = data.total_pages;
+      
       if (packArray.length === 0 && !append) {
          emptyState.style.display = 'block';
          return;
       }
+      
       if (!append) {
          customPacksGrid.style.display = 'grid';
          customPacksGrid.innerHTML = '';
       }
-      packArray.forEach(pack => {
-         customPacksGrid.appendChild(createCustomPackCard(pack));
-      });
+      
+      packArray.forEach(pack => customPacksGrid.appendChild(createCustomPackCard(pack)));
    } catch (error) {
       console.error('Error loading custom packs:', error);
       loading.style.display = 'none';
       isLoadingMore = false;
-      if (!append) {
-         emptyState.style.display = 'block';
-      }
+      if (!append) emptyState.style.display = 'block';
    }
 }
 
@@ -122,9 +114,7 @@ function createCustomPackCard(pack) {
    clone.querySelector('[data-field="title"]').textContent = pack.title;
    clone.querySelector('[data-field="name"]').textContent = pack.name;
    clone.querySelector('[data-field="sticker_count"]').textContent = `${pack.sticker_count} stickers`;
-   clone.querySelector('[data-action="edit-pack"]').addEventListener('click', () => {
-      openEditModal(pack);
-   });
+   clone.querySelector('[data-action="edit-pack"]').addEventListener('click', () => openEditModal(pack));
    clone.querySelector('[data-action="delete-pack"]').addEventListener('click', async () => {
       if (confirm(`Delete pack "${pack.title}"?`)) {
          await deletePack(pack.name);
@@ -172,9 +162,7 @@ async function createNewPack() {
 
 async function deletePack(packName) {
    try {
-      const response = await fetch(`/api/custom-packs/${encodeURIComponent(packName)}`, {
-         method: 'DELETE'
-      });
+      const response = await fetch(`/api/custom-packs/${encodeURIComponent(packName)}`, { method: 'DELETE' });
       if (response.ok) {
          currentPage = 1;
          loadCustomPacks();
@@ -196,7 +184,6 @@ async function openEditModal(pack) {
    document.getElementById('editPackTitle').value = pack.title;
    renderCurrentStickers();
    editModal.classList.add('active');
-   // Load stickers to add
    stickerSearchPage = 1;
    await searchStickersToAdd('');
 }
@@ -229,59 +216,60 @@ function renderCurrentStickers() {
    }
    empty.style.display = 'none';
    currentPackStickers.forEach((sticker, index) => {
-      const card = createEditableSticker(sticker, index);
-      grid.appendChild(card);
+      grid.appendChild(createEditableSticker(sticker, index));
    });
 }
 
 function createEditableSticker(sticker, index) {
-   const card = document.createElement('div');
-   card.className = 'sticker-card';
+   const clone = editableStickerTemplate.content.cloneNode(true);
    const filePath = `/sticker_files/${encodeURIComponent(sticker.pack_name)}/${encodeURIComponent(sticker.file_path)}`;
-   card.innerHTML = `
-      <div class="sticker-preview">
-         <img src="${filePath}" alt="" loading="lazy">
-      </div>
-      <div class="sticker-info">
-         ${sticker.emoji ? `<div class="sticker-emoji">${escapeHtml(sticker.emoji)}</div>` : ''}
-         <div class="sticker-pack-name">${escapeHtml(sticker.pack_title || sticker.pack_name)}</div>
-      </div>
-      <button class="btn-remove" title="Remove">×</button>
-   `;
-   card.querySelector('.btn-remove').addEventListener('click', () => {
+   
+   clone.querySelector('[data-field="image"]').src = filePath;
+   
+   const emojiDiv = clone.querySelector('[data-field="emoji"]');
+   if (sticker.emoji) {
+      emojiDiv.textContent = sticker.emoji;
+   } else {
+      emojiDiv.style.display = 'none';
+   }
+   
+   const packTitle = clone.querySelector('[data-field="pack_title"]');
+   packTitle.textContent = sticker.pack_title || sticker.pack_name;
+   
+   clone.querySelector('[data-action="remove-sticker"]').addEventListener('click', () => {
       currentPackStickers.splice(index, 1);
       renderCurrentStickers();
    });
-   return card;
+   
+   return clone;
 }
 
 async function searchStickersToAdd(query, append = false) {
    const grid = document.getElementById('searchStickersGrid');
    if (!append) {
-      grid.innerHTML = '<div class="loading">Loading...</div>';
+      grid.innerHTML = '';
+      grid.appendChild(loadingTemplate.content.cloneNode(true));
       stickerSearchPage = 1;
    }
    try {
       const response = await fetch(`/api/stickers/search?q=${encodeURIComponent(query)}&page=${stickerSearchPage}&per_page=100`);
       const data = await response.json();
       stickerSearchTotal = data.total_pages;
+      
       if (!append) {
          grid.innerHTML = '';
       } else {
          const loadMoreBtn = grid.querySelector('.load-more-btn');
          if (loadMoreBtn) loadMoreBtn.remove();
       }
-      data.stickers.forEach(item => {
-         const card = createSelectableSticker(item);
-         grid.appendChild(card);
-      });
-      // Add load more button if needed
+      
+      data.stickers.forEach(item => grid.appendChild(createSelectableSticker(item)));
+      
       if (stickerSearchPage < stickerSearchTotal) {
-         const loadMoreBtn = document.createElement('button');
-         loadMoreBtn.className = 'btn btn-primary load-more-btn';
-         loadMoreBtn.textContent = `Load More (${stickerSearchPage}/${stickerSearchTotal})`;
-         loadMoreBtn.dataset.action = 'load-more-search-stickers';
-         grid.appendChild(loadMoreBtn);
+         const loadMore = loadMoreTemplate.content.cloneNode(true);
+         loadMore.querySelector('[data-field="text"]').textContent = `Load More (${stickerSearchPage}/${stickerSearchTotal})`;
+         loadMore.querySelector('button').dataset.action = 'load-more-search-stickers';
+         grid.appendChild(loadMore);
       }
    } catch (error) {
       console.error('Error searching stickers:', error);
@@ -301,18 +289,24 @@ function createSelectableSticker(item) {
    const card = clone.querySelector('.sticker-card');
    const filePath = `/sticker_files/${encodeURIComponent(item.pack_name)}/${encodeURIComponent(item.sticker.file_path)}`;
    const stickerKey = `${item.pack_name}:${item.sticker.file_unique_id}`;
+   
    clone.querySelector('[data-field="image"]').src = filePath;
+   
    const emojiDiv = clone.querySelector('[data-field="emoji"]');
    if (item.emoji) {
       emojiDiv.textContent = item.emoji;
    } else {
       emojiDiv.style.display = 'none';
    }
-   clone.querySelector('[data-field="pack_title"]').textContent = item.pack_title;
-   clone.querySelector('[data-field="pack_title"]').title = item.pack_title;
+   
+   const packTitle = clone.querySelector('[data-field="pack_title"]');
+   packTitle.textContent = item.pack_title;
+   packTitle.title = item.pack_title;
+   
    if (selectedStickersToAdd.has(stickerKey)) {
       card.classList.add('selected');
    }
+   
    card.addEventListener('click', () => {
       if (selectedStickersToAdd.has(stickerKey)) {
          selectedStickersToAdd.delete(stickerKey);
@@ -320,7 +314,6 @@ function createSelectableSticker(item) {
       } else {
          selectedStickersToAdd.add(stickerKey);
          card.classList.add('selected');
-         // Add to current pack stickers
          currentPackStickers.push({
             pack_name: item.pack_name,
             pack_title: item.pack_title,
@@ -331,36 +324,36 @@ function createSelectableSticker(item) {
          renderCurrentStickers();
       }
    });
+   
    return clone;
 }
 
 async function searchPacksToAdd(query, append = false) {
    const grid = document.getElementById('searchPacksGrid');
    if (!append) {
-      grid.innerHTML = '<div class="loading">Loading...</div>';
+      grid.innerHTML = '';
+      grid.appendChild(loadingTemplate.content.cloneNode(true));
       packSearchPage = 1;
    }
    try {
       const response = await fetch(`/api/packs/search?q=${encodeURIComponent(query)}&page=${packSearchPage}&per_page=50`);
       const data = await response.json();
       packSearchTotal = data.total_pages;
+      
       if (!append) {
          grid.innerHTML = '';
       } else {
          const loadMoreBtn = grid.querySelector('.load-more-btn');
          if (loadMoreBtn) loadMoreBtn.remove();
       }
-      data.packs.forEach(pack => {
-         const card = createSelectablePack(pack);
-         grid.appendChild(card);
-      });
-      // Add load more button if needed
+      
+      data.packs.forEach(pack => grid.appendChild(createSelectablePack(pack)));
+      
       if (packSearchPage < packSearchTotal) {
-         const loadMoreBtn = document.createElement('button');
-         loadMoreBtn.className = 'btn btn-primary load-more-btn';
-         loadMoreBtn.textContent = `Load More (${packSearchPage}/${packSearchTotal})`;
-         loadMoreBtn.dataset.action = 'load-more-search-packs';
-         grid.appendChild(loadMoreBtn);
+         const loadMore = loadMoreTemplate.content.cloneNode(true);
+         loadMore.querySelector('[data-field="text"]').textContent = `Load More (${packSearchPage}/${packSearchTotal})`;
+         loadMore.querySelector('button').dataset.action = 'load-more-search-packs';
+         grid.appendChild(loadMore);
       }
    } catch (error) {
       console.error('Error searching packs:', error);
@@ -378,12 +371,15 @@ async function loadMoreSearchPacks() {
 function createSelectablePack(pack) {
    const clone = selectablePackTemplate.content.cloneNode(true);
    const card = clone.querySelector('.pack-card');
+   
    clone.querySelector('[data-field="title"]').textContent = pack.title;
    clone.querySelector('[data-field="name"]').textContent = pack.name;
    clone.querySelector('[data-field="sticker_count"]').textContent = `${pack.sticker_count} stickers`;
+   
    if (selectedPacksToAdd.has(pack.name)) {
       card.classList.add('selected');
    }
+   
    card.addEventListener('click', async () => {
       if (selectedPacksToAdd.has(pack.name)) {
          selectedPacksToAdd.delete(pack.name);
@@ -391,10 +387,10 @@ function createSelectablePack(pack) {
       } else {
          selectedPacksToAdd.add(pack.name);
          card.classList.add('selected');
-         // Fetch full pack and add all stickers
          await addPackStickers(pack.name);
       }
    });
+   
    return clone;
 }
 
@@ -403,10 +399,7 @@ async function addPackStickers(packName) {
       const response = await fetch(`/api/packs/${encodeURIComponent(packName)}?page=1&per_page=1000`);
       const pack = await response.json();
       pack.stickers.forEach(sticker => {
-         // Check if already added
-         if (!currentPackStickers.some(s => 
-            s.pack_name === packName && s.file_unique_id === sticker.file_unique_id
-         )) {
+         if (!currentPackStickers.some(s => s.pack_name === packName && s.file_unique_id === sticker.file_unique_id)) {
             currentPackStickers.push({
                pack_name: packName,
                pack_title: pack.title,
@@ -434,10 +427,7 @@ async function savePackChanges() {
       const response = await fetch(`/api/custom-packs/${encodeURIComponent(currentEditingPack.name)}`, {
          method: 'PUT',
          headers: { 'Content-Type': 'application/json' },
-         body: JSON.stringify({
-            title: title,
-            stickers: currentPackStickers
-         })
+         body: JSON.stringify({ title, stickers: currentPackStickers })
       });
       if (response.ok) {
          closeEditModal();

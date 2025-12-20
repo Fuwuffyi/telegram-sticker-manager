@@ -97,7 +97,20 @@
             </div>
          </div>
       </template>
-      <!-- Sticker Item Template for selection -->
+      <!-- Editable Sticker Template -->
+      <template id="editableStickerTemplate">
+         <div class="sticker-card">
+            <div class="sticker-preview">
+               <img data-field="image" alt="" loading="lazy">
+            </div>
+            <div class="sticker-info">
+               <div class="sticker-emoji" data-field="emoji"></div>
+               <div class="sticker-pack-name" data-field="pack_title"></div>
+            </div>
+            <button class="btn-remove" title="Remove" data-action="remove-sticker">×</button>
+         </div>
+      </template>
+      <!-- Selectable Sticker Template -->
       <template id="selectableStickerTemplate">
          <div class="sticker-card selectable">
             <div class="sticker-preview">
@@ -110,7 +123,7 @@
             </div>
          </div>
       </template>
-      <!-- Pack Item Template for selection -->
+      <!-- Selectable Pack Template -->
       <template id="selectablePackTemplate">
          <div class="pack-card selectable">
             <div class="pack-header">
@@ -122,6 +135,16 @@
             </div>
             <div class="selection-indicator"></div>
          </div>
+      </template>
+      <!-- Load More Button Template -->
+      <template id="loadMoreTemplate">
+         <button class="btn btn-primary load-more-btn">
+            <span data-field="text"></span>
+         </button>
+      </template>
+      <!-- Loading Template -->
+      <template id="loadingTemplate">
+         <div class="loading">Loading...</div>
       </template>
       <script src="{{ url_for('static', filename='custom_packs.js') }}" defer></script>
    </body>

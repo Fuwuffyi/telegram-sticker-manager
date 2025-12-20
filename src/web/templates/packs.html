@@ -38,7 +38,7 @@
                   <div class="modal-title" id="modalTitle"></div>
                   <div id="modalSubtitle"></div>
                </div>
-               <button class="close-btn" type="button" aria-label="Close dialog" onclick="closeModal()">&times;</button>
+               <button class="close-btn" type="button" aria-label="Close dialog" data-action="close-modal">&times;</button>
             </div>
             <div class="modal-footer" style="border-bottom: 1px solid var(--border); padding-bottom: 16px; margin-bottom: 16px;">
                <button class="btn btn-secondary" data-action="export-current-pack">Export This Pack (JSON)</button>
@@ -49,9 +49,11 @@
       <!-- Pack Card Template -->
       <template id="packCardTemplate">
          <div class="pack-card">
+            <div class="pack-thumbnail"></div>
             <div class="pack-header">
                <div class="pack-title" data-field="title"></div>
                <div class="pack-name" data-field="name"></div>
+               <a class="pack-link" data-field="link" target="_blank" rel="noopener noreferrer">Open in Telegram</a>
             </div>
             <div class="pack-info">
                <span data-field="sticker_count"></span>
@@ -67,11 +69,21 @@
             </div>
          </div>
       </template>
+      <!-- Thumbnail Image Template -->
+      <template id="thumbnailTemplate">
+         <img data-field="src" alt="" loading="lazy">
+      </template>
       <!-- Sticker Item Template -->
       <template id="stickerItemTemplate">
          <div class="sticker-item">
             <img data-field="image" alt="" loading="lazy">
          </div>
+      </template>
+      <!-- Load More Button Template -->
+      <template id="loadMoreTemplate">
+         <button class="btn btn-primary load-more-btn" data-action="load-more-stickers">
+            <span data-field="text"></span>
+         </button>
       </template>
       <script src="{{ url_for('static', filename='packs.js') }}" defer></script>
    </body>
