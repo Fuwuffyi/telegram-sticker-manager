@@ -89,17 +89,14 @@ async function loadCustomPacks(append = false) {
       loading.style.display = 'none';
       isLoadingMore = false;
       totalPages = data.total_pages;
-      
       if (packArray.length === 0 && !append) {
          emptyState.style.display = 'block';
          return;
       }
-      
       if (!append) {
          customPacksGrid.style.display = 'grid';
          customPacksGrid.innerHTML = '';
       }
-      
       packArray.forEach(pack => customPacksGrid.appendChild(createCustomPackCard(pack)));
    } catch (error) {
       console.error('Error loading custom packs:', error);
@@ -111,6 +108,22 @@ async function loadCustomPacks(append = false) {
 
 function createCustomPackCard(pack) {
    const clone = customPackCardTemplate.content.cloneNode(true);
+   const card = clone.querySelector('.pack-card');
+   // Handle Signal status from template
+   const statusContainer = clone.querySelector('[data-signal-status]');
+   if (pack.signal_url) {
+      const signalBadge = statusContainer.querySelector('[data-signal-badge]');
+      const signalLink = statusContainer.querySelector('[data-signal-link]');
+      signalBadge.hidden = false;
+      signalBadge.textContent = pack.needs_signal_update ? '⚠ Signal (Update Available)' : '✓ On Signal';
+      if (pack.needs_signal_update) {
+         signalBadge.classList.add('needs-update');
+      }
+      signalLink.hidden = false;
+      signalLink.href = pack.signal_url;
+   } else {
+      statusContainer.remove();
+   }
    clone.querySelector('[data-field="title"]').textContent = pack.title;
    clone.querySelector('[data-field="name"]').textContent = pack.name;
    clone.querySelector('[data-field="sticker_count"]').textContent = `${pack.sticker_count} stickers`;
@@ -120,6 +133,13 @@ function createCustomPackCard(pack) {
          await deletePack(pack.name);
       }
    });
+   // Handle Signal upload button from template
+   const signalBtn = clone.querySelector('[data-action="upload-signal"]');
+   signalBtn.textContent = pack.signal_url ? 'Update Signal' : 'Upload to Signal';
+   if (pack.needs_signal_update) {
+      signalBtn.classList.add('needs-update');
+   }
+   signalBtn.addEventListener('click', () => uploadCustomPackToSignal(pack.name));
    return clone;
 }
 
@@ -175,6 +195,30 @@ async function deletePack(packName) {
    }
 }
 
+async function uploadCustomPackToSignal(packName) {
+   if (!confirm('Upload this custom pack to Signal? This may take a few moments.')) {
+      return;
+   }
+   try {
+      const response = await fetch(`/api/custom-packs/${encodeURIComponent(packName)}/upload-signal`, {
+         method: 'POST',
+         headers: { 'Content-Type': 'application/json' }
+      });
+      const data = await response.json();
+      if (response.ok) {
+         alert(`Successfully uploaded to Signal!\n\nURL: ${data.signal_url}`);
+         // Refresh the pack list to show updated status
+         currentPage = 1;
+         await loadCustomPacks();
+      } else {
+         alert(`Failed to upload to Signal: ${data.error}`);
+      }
+   } catch (error) {
+      console.error('Error uploading to Signal:', error);
+      alert('Failed to upload to Signal');
+   }
+}
+
 async function openEditModal(pack) {
    currentEditingPack = pack;
    currentPackStickers = [...pack.stickers];
@@ -223,24 +267,19 @@ function renderCurrentStickers() {
 function createEditableSticker(sticker, index) {
    const clone = editableStickerTemplate.content.cloneNode(true);
    const filePath = `/sticker_files/${encodeURIComponent(sticker.pack_name)}/${encodeURIComponent(sticker.file_path)}`;
-   
    clone.querySelector('[data-field="image"]').src = filePath;
-   
    const emojiDiv = clone.querySelector('[data-field="emoji"]');
    if (sticker.emoji) {
       emojiDiv.textContent = sticker.emoji;
    } else {
       emojiDiv.style.display = 'none';
    }
-   
    const packTitle = clone.querySelector('[data-field="pack_title"]');
    packTitle.textContent = sticker.pack_title || sticker.pack_name;
-   
    clone.querySelector('[data-action="remove-sticker"]').addEventListener('click', () => {
       currentPackStickers.splice(index, 1);
       renderCurrentStickers();
    });
-   
    return clone;
 }
 
@@ -255,16 +294,13 @@ async function searchStickersToAdd(query, append = false) {
       const response = await fetch(`/api/stickers/search?q=${encodeURIComponent(query)}&page=${stickerSearchPage}&per_page=100`);
       const data = await response.json();
       stickerSearchTotal = data.total_pages;
-      
       if (!append) {
          grid.innerHTML = '';
       } else {
          const loadMoreBtn = grid.querySelector('.load-more-btn');
          if (loadMoreBtn) loadMoreBtn.remove();
       }
-      
       data.stickers.forEach(item => grid.appendChild(createSelectableSticker(item)));
-      
       if (stickerSearchPage < stickerSearchTotal) {
          const loadMore = loadMoreTemplate.content.cloneNode(true);
          loadMore.querySelector('[data-field="text"]').textContent = `Load More (${stickerSearchPage}/${stickerSearchTotal})`;
@@ -289,24 +325,19 @@ function createSelectableSticker(item) {
    const card = clone.querySelector('.sticker-card');
    const filePath = `/sticker_files/${encodeURIComponent(item.pack_name)}/${encodeURIComponent(item.sticker.file_path)}`;
    const stickerKey = `${item.pack_name}:${item.sticker.file_unique_id}`;
-   
    clone.querySelector('[data-field="image"]').src = filePath;
-   
    const emojiDiv = clone.querySelector('[data-field="emoji"]');
    if (item.emoji) {
       emojiDiv.textContent = item.emoji;
    } else {
       emojiDiv.style.display = 'none';
    }
-   
    const packTitle = clone.querySelector('[data-field="pack_title"]');
    packTitle.textContent = item.pack_title;
    packTitle.title = item.pack_title;
-   
    if (selectedStickersToAdd.has(stickerKey)) {
       card.classList.add('selected');
    }
-   
    card.addEventListener('click', () => {
       if (selectedStickersToAdd.has(stickerKey)) {
          selectedStickersToAdd.delete(stickerKey);
@@ -324,7 +355,6 @@ function createSelectableSticker(item) {
          renderCurrentStickers();
       }
    });
-   
    return clone;
 }
 
@@ -339,16 +369,13 @@ async function searchPacksToAdd(query, append = false) {
       const response = await fetch(`/api/packs/search?q=${encodeURIComponent(query)}&page=${packSearchPage}&per_page=50`);
       const data = await response.json();
       packSearchTotal = data.total_pages;
-      
       if (!append) {
          grid.innerHTML = '';
       } else {
          const loadMoreBtn = grid.querySelector('.load-more-btn');
          if (loadMoreBtn) loadMoreBtn.remove();
       }
-      
       data.packs.forEach(pack => grid.appendChild(createSelectablePack(pack)));
-      
       if (packSearchPage < packSearchTotal) {
          const loadMore = loadMoreTemplate.content.cloneNode(true);
          loadMore.querySelector('[data-field="text"]').textContent = `Load More (${packSearchPage}/${packSearchTotal})`;
@@ -371,15 +398,12 @@ async function loadMoreSearchPacks() {
 function createSelectablePack(pack) {
    const clone = selectablePackTemplate.content.cloneNode(true);
    const card = clone.querySelector('.pack-card');
-   
    clone.querySelector('[data-field="title"]').textContent = pack.title;
    clone.querySelector('[data-field="name"]').textContent = pack.name;
    clone.querySelector('[data-field="sticker_count"]').textContent = `${pack.sticker_count} stickers`;
-   
    if (selectedPacksToAdd.has(pack.name)) {
       card.classList.add('selected');
    }
-   
    card.addEventListener('click', async () => {
       if (selectedPacksToAdd.has(pack.name)) {
          selectedPacksToAdd.delete(pack.name);
@@ -390,7 +414,6 @@ function createSelectablePack(pack) {
          await addPackStickers(pack.name);
       }
    });
-   
    return clone;
 }
 

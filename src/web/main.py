@@ -1,12 +1,14 @@
+import asyncio
 import shutil
-
+import time
 from pathlib import Path
 
 from flask import Flask, Response, jsonify, make_response, render_template, request, send_from_directory
 from rapidfuzz import fuzz
 
 from src.config import DATABASE_FILE, DOWNLOAD_DIR
-from src.database import CustomPackSticker, Database, StickerPackRecord, StickerSearchResult
+from src.database import CustomPackSticker, Database, StickerPackRecord, StickerRecord, StickerSearchResult
+from src.web.signal_uploader import upload_custom_pack_to_signal, upload_telegram_pack_to_signal
 
 app: Flask = Flask(__name__)
 db: Database = Database(DATABASE_FILE)
@@ -76,7 +78,7 @@ def search_packs() -> Response:
     # Get thumbnails for each pack
     packs_with_thumbnails = []
     for pack in filtered_packs:
-        thumbnails = db.get_pack_thumbnail_stickers(pack['name'], limit=4)
+        thumbnails: list[StickerRecord] = db.get_pack_thumbnail_stickers(pack['name'], limit=4)
         pack_dict = dict(pack)
         pack_dict['thumbnails'] = [
             {
@@ -85,6 +87,11 @@ def search_packs() -> Response:
             }
             for s in thumbnails
         ]
+        # Check if pack needs update
+        pack_dict['needs_signal_update'] = (
+            pack.get('signal_uploaded_at') is not None and
+            pack.get('last_update', 0) > pack.get('signal_uploaded_at', 0)
+        )
         packs_with_thumbnails.append(pack_dict)
     return jsonify({
         'packs': packs_with_thumbnails,
@@ -96,18 +103,26 @@ def search_packs() -> Response:
 
 @app.route('/api/packs/<pack_name>')
 def get_pack(pack_name: str) -> tuple[Response, int] | Response:
-    pack_info = db.get_sticker_pack(pack_name)
+    pack_info: StickerPackRecord | None = db.get_sticker_pack(pack_name)
     if not pack_info:
         return jsonify({'error': 'Pack not found'}), 404
     page: int = int(request.args.get('page', 1))
     per_page: int = int(request.args.get('per_page', 100))
     stickers, total = db.get_pack_stickers(pack_name, page, per_page)
+    needs_signal_update: bool = (
+        pack_info.get('signal_uploaded_at') is not None and
+        pack_info.get('last_update', 0) > pack_info.get('signal_uploaded_at', 0)
+    )
     response_pack = {
         'name': pack_info['name'],
         'title': pack_info['title'],
         'artist': pack_info['artist'],
         'last_update': pack_info['last_update'],
         'sticker_count': pack_info['sticker_count'],
+        'signal_url': pack_info.get('signal_url'),
+        'signal_uploaded_at': pack_info.get('signal_uploaded_at'),
+        'needs_signal_update': needs_signal_update,
+        'used_in_custom_packs': pack_info.get('used_in_custom_packs', False),
         'stickers': [dict(s) for s in stickers],
         'total': total,
         'page': page,
@@ -169,6 +184,35 @@ def update_sticker_emoji(pack_name: str) -> tuple[Response, int] | Response:
         app.logger.error(f"Error updating emoji: {e}", exc_info=True)
         return jsonify({'error': f'Internal error: {str(e)}'}), 500
 
+@app.route('/api/packs/<pack_name>/upload-signal', methods=['POST'])
+def upload_pack_to_signal(pack_name: str) -> tuple[Response, int] | Response:
+    try:
+        pack_info: StickerPackRecord | None = db.get_sticker_pack(pack_name)
+        if not pack_info:
+            return jsonify({'error': 'Pack not found'}), 404
+        # Run async upload
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        try:
+            signal_url: str | None = loop.run_until_complete(upload_telegram_pack_to_signal(db, pack_name))
+        finally:
+            loop.close()
+        if not signal_url:
+            return jsonify({'error': 'Failed to upload to Signal'}), 500
+        # Update database with Signal URL
+        uploaded_at = int(time.time())
+        _ = db.update_pack_signal_url(pack_name, signal_url, uploaded_at)
+        return jsonify({
+            'success': True,
+            'signal_url': signal_url,
+            'uploaded_at': uploaded_at
+        })
+    except ValueError as e:
+        return jsonify({'error': str(e)}), 500
+    except Exception as e:
+        app.logger.error(f"Error uploading to Signal: {e}", exc_info=True)
+        return jsonify({'error': f'Internal error: {str(e)}'}), 500
+
 @app.route('/api/stickers/search')
 def search_stickers() -> Response:
     query: str = request.args.get('q', '')
@@ -203,12 +247,20 @@ def get_custom_packs() -> Response:
     page: int = int(request.args.get('page', 1))
     per_page: int = int(request.args.get('per_page', 50))
     packs_with_counts, total = db.get_all_custom_packs(page, per_page)
-    result: dict[str, dict[str, str | list[CustomPackSticker] | int]] = {}
+    result = {}
     for pack, count in packs_with_counts:
         stickers, _ = db.get_custom_pack_stickers(pack['name'], page=1, per_page=4)
+        # Check if pack needs update
+        needs_signal_update: bool = (
+            pack.get('signal_uploaded_at') is not None and
+            pack.get('last_modified', 0) > pack.get('signal_uploaded_at', 0)
+        )
         result[pack['name']] = {
             'name': pack['name'],
             'title': pack['title'],
+            'signal_url': pack.get('signal_url'),
+            'signal_uploaded_at': pack.get('signal_uploaded_at'),
+            'needs_signal_update': needs_signal_update,
             'stickers': stickers,
             'sticker_count': count
         }
@@ -240,9 +292,16 @@ def get_custom_pack(pack_name: str) -> tuple[Response, int] | Response:
     page: int = int(request.args.get('page', 1))
     per_page: int = int(request.args.get('per_page', 100))
     stickers, total = db.get_custom_pack_stickers(pack_name, page, per_page)
+    needs_signal_update: bool = (
+        pack.get('signal_uploaded_at') is not None and
+        pack.get('last_modified', 0) > pack.get('signal_uploaded_at', 0)
+    )
     return jsonify({
         'name': pack['name'],
         'title': pack['title'],
+        'signal_url': pack.get('signal_url'),
+        'signal_uploaded_at': pack.get('signal_uploaded_at'),
+        'needs_signal_update': needs_signal_update,
         'stickers': [dict(s) for s in stickers],
         'total': total,
         'page': page,
@@ -276,6 +335,37 @@ def update_custom_pack(pack_name: str) -> tuple[Response, int] | Response:
         return jsonify({'error': 'Failed to update pack'}), 500
     except Exception as e:
         app.logger.error(f"Error updating custom pack: {e}", exc_info=True)
+        return jsonify({'error': f'Internal error: {str(e)}'}), 500
+
+@app.route('/api/custom-packs/<pack_name>/upload-signal', methods=['POST'])
+def upload_custom_pack_to_signal_endpoint(pack_name: str) -> tuple[Response, int] | Response:
+    try:
+        pack_info = db.get_custom_pack(pack_name)
+        if not pack_info:
+            return jsonify({'error': 'Pack not found'}), 404
+        # Run async upload
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        try:
+            signal_url = loop.run_until_complete(
+                upload_custom_pack_to_signal(db, pack_name)
+            )
+        finally:
+            loop.close()
+        if not signal_url:
+            return jsonify({'error': 'Failed to upload to Signal'}), 500
+        # Update database with Signal URL
+        uploaded_at = int(time.time())
+        _ = db.update_custom_pack_signal_url(pack_name, signal_url, uploaded_at)
+        return jsonify({
+            'success': True,
+            'signal_url': signal_url,
+            'uploaded_at': uploaded_at
+        })
+    except ValueError as e:
+        return jsonify({'error': str(e)}), 500
+    except Exception as e:
+        app.logger.error(f"Error uploading custom pack to Signal: {e}", exc_info=True)
         return jsonify({'error': f'Internal error: {str(e)}'}), 500
 
 @app.route('/api/custom-packs/<pack_name>', methods=['DELETE'])

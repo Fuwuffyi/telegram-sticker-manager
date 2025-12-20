@@ -49,6 +49,11 @@
       <!-- Pack Card Template -->
       <template id="packCardTemplate">
          <div class="pack-card">
+            <div class="signal-status" data-signal-status>
+               <span class="signal-badge" hidden data-signal-badge></span>
+               <a hidden data-signal-link>Open</a>
+               <span class="signal-badge in-custom" hidden data-custom-badge>In Custom Packs</span>
+            </div>
             <div class="pack-thumbnail"></div>
             <div class="pack-header">
                <div class="pack-title" data-field="title"></div>
@@ -65,6 +70,7 @@
             </div>
             <div class="pack-actions">
                <button class="btn btn-primary" data-action="view-stickers">View Stickers</button>
+               <button class="btn btn-signal" data-action="upload-signal">Upload to Signal</button>
                <button class="btn btn-danger" data-action="delete-pack">Delete</button>
             </div>
          </div>

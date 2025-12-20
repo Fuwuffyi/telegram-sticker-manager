@@ -59,6 +59,32 @@ function formatDate(timestamp) {
 function createPackCard(pack) {
    const clone = packCardTemplate.content.cloneNode(true);
    const card = clone.querySelector('.pack-card');
+   // Handle Signal status from template
+   const statusContainer = clone.querySelector('[data-signal-status]');
+   if (pack.signal_url || pack.used_in_custom_packs) {
+      const signalBadge = statusContainer.querySelector('[data-signal-badge]');
+      const signalLink = statusContainer.querySelector('[data-signal-link]');
+      const customBadge = statusContainer.querySelector('[data-custom-badge]');
+      if (pack.signal_url) {
+         signalBadge.hidden = false;
+         signalBadge.textContent = pack.needs_signal_update ? '⚠ Signal (Update Available)' : '✓ On Signal';
+         if (pack.needs_signal_update) {
+            signalBadge.classList.add('needs-update');
+         }
+         signalLink.hidden = false;
+         signalLink.href = pack.signal_url;
+      } else {
+         signalBadge.remove();
+         signalLink.remove();
+      }
+      if (pack.used_in_custom_packs) {
+         customBadge.hidden = false;
+      } else {
+         customBadge.remove();
+      }
+   } else {
+      statusContainer.remove();
+   }
    if (pack.thumbnails?.length) {
       const thumbnailContainer = clone.querySelector('.pack-thumbnail');
       pack.thumbnails.forEach(thumb => {
@@ -84,6 +110,13 @@ function createPackCard(pack) {
          await deletePack(pack.name);
       }
    });
+   // Handle Signal upload button from template
+   const signalBtn = clone.querySelector('[data-action="upload-signal"]');
+   signalBtn.textContent = pack.signal_url ? 'Update Signal' : 'Upload to Signal';
+   if (pack.needs_signal_update) {
+      signalBtn.classList.add('needs-update');
+   }
+   signalBtn.addEventListener('click', () => uploadToSignal(pack.name));
    return clone;
 }
 
@@ -192,6 +225,30 @@ async function updateArtist(packName) {
    } catch (error) {
       console.error('Error updating artist:', error);
       alert('Failed to update artist');
+   }
+}
+
+async function uploadToSignal(packName) {
+   if (!confirm('Upload this pack to Signal? This may take a few moments.')) {
+      return;
+   }
+   try {
+      const response = await fetch(`/api/packs/${encodeURIComponent(packName)}/upload-signal`, {
+         method: 'POST',
+         headers: { 'Content-Type': 'application/json' }
+      });
+      const data = await response.json();
+      if (response.ok) {
+         alert(`Successfully uploaded to Signal!\n\nURL: ${data.signal_url}`);
+         // Refresh the pack list to show updated status
+         currentPage = 1;
+         await searchPacks(currentQuery);
+      } else {
+         alert(`Failed to upload to Signal: ${data.error}`);
+      }
+   } catch (error) {
+      console.error('Error uploading to Signal:', error);
+      alert('Failed to upload to Signal');
    }
 }
 

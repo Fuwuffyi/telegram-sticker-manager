@@ -12,6 +12,8 @@
    --text-secondary: #a0a0a0;
    --accent: #FFEB3B;
    --accent-dark: #FBC02D;
+   --secondary: #03DAC6;
+   --secondary-dark: #018786;
    --border: #333333;
    --success: #03A9F4;
    --error: #cf6679;
@@ -265,6 +267,15 @@ body {
 
 .btn-danger:hover {
    background: #b00020;
+}
+
+.btn-signal {
+   background: var(--secondary);
+   color: var(--bg-primary);
+}
+
+.btn-signal:hover {
+   background: var(--secondary-dark);
 }
 
 .btn-remove {
