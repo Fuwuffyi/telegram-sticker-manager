@@ -88,6 +88,15 @@ function createPackCard(pack) {
    clone.querySelector('[data-field="name"]').textContent = pack.name;
    clone.querySelector('[data-field="sticker_count"]').textContent = `${pack.sticker_count} stickers`;
    clone.querySelector('[data-field="last_update"]').textContent = formatDate(pack.last_update);
+   // Add Telegram pack link
+   const packHeader = clone.querySelector('.pack-header');
+   const packLink = document.createElement('a');
+   packLink.className = 'pack-link';
+   packLink.href = `https://t.me/addstickers/${pack.name}`;
+   packLink.target = '_blank';
+   packLink.rel = 'noopener noreferrer';
+   packLink.textContent = 'Open in Telegram';
+   packHeader.appendChild(packLink);
    // Set artist input
    const artistInput = clone.querySelector('[data-field="artist-input"]');
    artistInput.value = pack.artist || 'Unknown';
