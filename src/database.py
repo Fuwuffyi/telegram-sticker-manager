@@ -136,10 +136,10 @@ class Database:
             else:
                 query_pattern: str = f"%{query}%"
                 cursor = conn.execute("""
-                    SELECT name, title, artist, last_update, sticker_count 
+                    SELECT name, title, artist, last_update, sticker_count
                     FROM sticker_packs
-                    WHERE name LIKE ? COLLATE NOCASE 
-                       OR title LIKE ? COLLATE NOCASE 
+                    WHERE name LIKE ? COLLATE NOCASE
+                       OR title LIKE ? COLLATE NOCASE
                        OR artist LIKE ? COLLATE NOCASE
                     ORDER BY last_update DESC
                 """, (query_pattern, query_pattern, query_pattern))
