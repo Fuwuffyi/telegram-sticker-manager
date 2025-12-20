@@ -249,18 +249,13 @@ body {
    background: var(--border);
 }
 
-.btn-icon {
-   background: var(--bg-tertiary);
-   border: 1px solid var(--border);
-   border-radius: 4px;
-   padding: 6px 10px;
-   cursor: pointer;
-   font-size: 0.875rem;
-   transition: all 0.2s;
+.btn-danger {
+   background: var(--error);
+   color: white;
 }
 
-.btn-icon:hover {
-   background: var(--border);
+.btn-danger:hover {
+   background: #b00020;
 }
 
 .btn-remove {
