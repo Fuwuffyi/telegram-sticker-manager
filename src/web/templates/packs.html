@@ -16,6 +16,9 @@
             <a href="/stickers">Stickers</a>
             <a href="/custom-packs">Custom Packs</a>
          </nav>
+         <div class="actions-bar">
+            <button class="btn btn-secondary" data-action="export-packs">Export All Packs (JSON)</button>
+         </div>
          <div class="search-box">
             <input type="text" class="search-input" id="searchInput" placeholder="Search packs" autocomplete="off">
          </div>
@@ -36,6 +39,9 @@
                   <div id="modalSubtitle"></div>
                </div>
                <button class="close-btn" type="button" aria-label="Close dialog" onclick="closeModal()">&times;</button>
+            </div>
+            <div class="modal-footer" style="border-bottom: 1px solid var(--border); padding-bottom: 16px; margin-bottom: 16px;">
+               <button class="btn btn-secondary" data-action="export-current-pack">Export This Pack (JSON)</button>
             </div>
             <div class="modal-stickers-grid" id="modalStickers"></div>
          </div>

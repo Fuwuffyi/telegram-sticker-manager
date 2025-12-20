@@ -4,9 +4,12 @@ const packsGrid = document.getElementById('packsGrid');
 const loading = document.getElementById('loading');
 const emptyState = document.getElementById('emptyState');
 const modal = document.getElementById('modal');
+const resultsCount = document.getElementById('resultsCount');
 
 const packCardTemplate = document.getElementById('packCardTemplate');
 const stickerItemTemplate = document.getElementById('stickerItemTemplate');
+
+let currentPackName = null;
 
 // Initial load
 searchPacks('');
@@ -19,11 +22,15 @@ searchInput.addEventListener('input', (e) => {
    }, 300);
 });
 
-// Event delegation for modal close
-document.addEventListener('click', (e) => {
+// Event delegation for modal close and actions
+document.addEventListener('click', async (e) => {
    const action = e.target.dataset.action;
    if (action === 'close-modal' || (e.target === modal)) {
       closeModal();
+   } else if (action === 'export-packs') {
+      await exportAllPacks();
+   } else if (action === 'export-current-pack') {
+      await exportCurrentPack();
    }
 });
 
@@ -97,6 +104,7 @@ async function searchPacks(query) {
 }
 
 async function showPack(packName) {
+   currentPackName = packName;
    try {
       const response = await fetch(`/api/packs/${encodeURIComponent(packName)}`);
       const pack = await response.json();
@@ -137,6 +145,52 @@ async function updateArtist(packName) {
    }
 }
 
+async function exportAllPacks() {
+   try {
+      const response = await fetch('/api/export/packs');
+      if (response.ok) {
+         const blob = await response.blob();
+         const url = window.URL.createObjectURL(blob);
+         const a = document.createElement('a');
+         a.href = url;
+         a.download = 'sticker_packs.json';
+         document.body.appendChild(a);
+         a.click();
+         window.URL.revokeObjectURL(url);
+         document.body.removeChild(a);
+      } else {
+         alert('Failed to export packs');
+      }
+   } catch (error) {
+      console.error('Error exporting packs:', error);
+      alert('Failed to export packs');
+   }
+}
+
+async function exportCurrentPack() {
+   if (!currentPackName) return;
+   try {
+      const response = await fetch(`/api/export/pack/${encodeURIComponent(currentPackName)}`);
+      if (response.ok) {
+         const blob = await response.blob();
+         const url = window.URL.createObjectURL(blob);
+         const a = document.createElement('a');
+         a.href = url;
+         a.download = `${currentPackName}_stickers.json`;
+         document.body.appendChild(a);
+         a.click();
+         window.URL.revokeObjectURL(url);
+         document.body.removeChild(a);
+      } else {
+         alert('Failed to export pack');
+      }
+   } catch (error) {
+      console.error('Error exporting pack:', error);
+      alert('Failed to export pack');
+   }
+}
+
 function closeModal() {
    modal.classList.remove('active');
+   currentPackName = null;
 }

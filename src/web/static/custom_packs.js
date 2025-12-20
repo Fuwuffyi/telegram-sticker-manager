@@ -31,6 +31,8 @@ document.addEventListener('click', async (e) => {
       closeEditModal();
    } else if (action === 'save-pack-changes') {
       await savePackChanges();
+   } else if (action === 'export-custom-packs') {
+      await exportCustomPacks();
    } else if (e.target.classList.contains('tab-btn')) {
       switchTab(e.target.dataset.tab);
    }
@@ -360,3 +362,26 @@ async function savePackChanges() {
       alert('Failed to save changes');
    }
 }
+
+async function exportCustomPacks() {
+   try {
+      const response = await fetch('/api/export/custom-packs');
+      if (response.ok) {
+         const blob = await response.blob();
+         const url = window.URL.createObjectURL(blob);
+         const a = document.createElement('a');
+         a.href = url;
+         a.download = 'custom_packs.json';
+         document.body.appendChild(a);
+         a.click();
+         window.URL.revokeObjectURL(url);
+         document.body.removeChild(a);
+      } else {
+         alert('Failed to export custom packs');
+      }
+   } catch (error) {
+      console.error('Error exporting custom packs:', error);
+      alert('Failed to export custom packs');
+   }
+}
+

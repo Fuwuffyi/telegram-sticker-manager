@@ -9,8 +9,7 @@ _ = load_dotenv()
 # Paths
 PROJECT_ROOT: Path = Path(__file__).resolve().parent.parent
 DOWNLOAD_DIR: Path = PROJECT_ROOT / "sticker_registry" / "pack_files"
-REGISTRY_FILE: Path = PROJECT_ROOT / "sticker_registry" / "registry.json"
-CUSTOM_PACKS_FILE: Path = PROJECT_ROOT / "sticker_registry" / "custom_packs.json"
+DATABASE_FILE: Path = PROJECT_ROOT / "sticker_registry" / "sticker_data.sqlite"
 
 # Telegram Bot Token
 BOT_TOKEN: str | None = os.getenv("BOT_TOKEN")

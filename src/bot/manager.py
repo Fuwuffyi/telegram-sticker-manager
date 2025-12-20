@@ -1,47 +1,21 @@
 import asyncio
-import json
 import logging
 from datetime import datetime
 from pathlib import Path
-from typing import Any
 
 import aiohttp
-from telegram import Sticker, StickerSet
+from telegram import File, Sticker, StickerSet
 from telegram.ext import ContextTypes
 
-from src.bot.models import StickerPackInfo
+from src.database import Database, StickerRecord
 
 logger: logging.Logger = logging.getLogger(__name__)
 
 class StickerPackManager:
-    def __init__(self, download_dir: Path, registry_file: Path) -> None:
+    def __init__(self, download_dir: Path, db: Database) -> None:
         self.download_dir: Path = download_dir
-        self.registry_file: Path = registry_file
-        self.registry: dict[str, StickerPackInfo] = {}
+        self.db: Database = db
         self._lock: asyncio.Lock = asyncio.Lock()
-        self._load_registry()
-
-    def _load_registry(self) -> None:
-        if self.registry_file.exists():
-            try:
-                with open(self.registry_file, 'r', encoding='utf-8') as f:
-                    self.registry = json.load(f)
-                logger.info(f"Loaded registry with {len(self.registry)} packs")
-            except Exception as e:
-                logger.error(f"Error loading registry: {e}")
-                self.registry = {}
-        else:
-            self.registry = {}
-
-    async def _save_registry(self) -> None:
-        async with self._lock:
-            try:
-                self.registry_file.parent.mkdir(parents=True, exist_ok=True)
-                with open(self.registry_file, 'w', encoding='utf-8') as f:
-                    json.dump(self.registry, f, ensure_ascii=False)
-                logger.info("Registry saved successfully")
-            except Exception as e:
-                logger.error(f"Error saving registry: {e}")
 
     def _get_pack_dir(self, pack_name: str) -> Path:
         pack_dir: Path = self.download_dir / pack_name
@@ -62,13 +36,6 @@ class StickerPackManager:
             logger.error(f"Error downloading sticker: {e}")
             return False
 
-    def _get_existing_stickers(self, pack_name: str) -> set[str]:
-        if pack_name in self.registry:
-            stickers_data = self.registry[pack_name].get('stickers', {})
-            if isinstance(stickers_data, dict):
-                return set(stickers_data.keys())
-        return set()
-
     def _get_file_extension(self, sticker: Sticker) -> str:
         if sticker.is_animated:
             return "tgs"
@@ -76,29 +43,18 @@ class StickerPackManager:
             return "webm"
         return "webp"
 
-    async def _download_and_track(
-        self,
-        session: aiohttp.ClientSession,
-        file_url: str,
-        output_path: Path,
-        sticker: Sticker,
-        stickers_dict: dict[str, dict[str, str | int | bool | None]],
-        filename: str
-    ) -> None:
+    async def _download_and_track(self, session: aiohttp.ClientSession, file_url: str, output_path: Path, sticker: Sticker) -> StickerRecord | None:
         success: bool = await self._download_sticker(session, file_url, output_path)
         if success:
-            stickers_dict[sticker.file_unique_id] = {
+            sticker_record: StickerRecord = {
                 'file_id': sticker.file_id,
                 'file_unique_id': sticker.file_unique_id,
                 'emoji': sticker.emoji,
-                'width': sticker.width,
-                'height': sticker.height,
-                'is_animated': sticker.is_animated,
-                'is_video': sticker.is_video,
-                'file_path': filename
+                'file_path': output_path.name
             }
-            logger.info(f"Downloaded: {filename}")
-
+            logger.info(f"Downloaded: {output_path.name}")
+            return sticker_record
+        return None
 
     async def process_sticker_pack(self, sticker: Sticker, context: ContextTypes.DEFAULT_TYPE) -> None:
         if not sticker.set_name:
@@ -110,44 +66,37 @@ class StickerPackManager:
             sticker_set: StickerSet = await context.bot.get_sticker_set(pack_name)
             logger.info(f"Retrieved sticker set: {sticker_set.title}")
             # Check if we need to update
-            pack_info: StickerPackInfo | None = self.registry.get(pack_name)
-            existing_stickers: set[str] = self._get_existing_stickers(pack_name)
-            # Create set of current sticker unique IDs
+            existing_stickers: set[str] = self.db.get_sticker_unique_ids(pack_name)
             current_sticker_ids: set[str] = {s.file_unique_id for s in sticker_set.stickers}
             # Check if pack has new stickers
             new_stickers: set[str] = current_sticker_ids - existing_stickers
             removed_stickers: set[str] = existing_stickers - current_sticker_ids
-            if pack_info and not new_stickers and not removed_stickers:
+            if not new_stickers and not removed_stickers and existing_stickers:
                 logger.info(f"Pack '{pack_name}' is up to date with {len(existing_stickers)} stickers, skipping")
                 return
             logger.info(f"Processing pack '{pack_name}' ({sticker_set.title})")
-            if pack_info:
+            if existing_stickers:
                 logger.info(f"New stickers to download: {len(new_stickers)}")
             else:
                 logger.info(f"First time download: {len(current_sticker_ids)} stickers")
             pack_dir: Path = self._get_pack_dir(pack_name)
-            # Prepare sticker info dict (preserve old stickers)
-            stickers_dict: dict[str, dict[str, str | int | bool | None]] = {}
-            if pack_info:
-                old_stickers: str | int | dict[Any, Any] = pack_info.get('stickers', {})
-                if isinstance(old_stickers, dict):
-                    stickers_dict = old_stickers
-            # Create emoji mapping
-            emoji_mapping: dict[str, str] = {}
-            # Load existing emoji mappings if they exist
-            emoji_file: Path = pack_dir / "emojis.json"
-            if emoji_file.exists():
-                try:
-                    existing_emojis: dict[str, str] = json.loads(await asyncio.to_thread(emoji_file.read_text, encoding='utf-8'))
-                    emoji_mapping.update(existing_emojis)
-                except Exception as e:
-                    logger.error(f"Error loading existing emojis: {e}")
+            # Update pack info in database
+            pack_artist: str = 'Unknown'
+            existing_pack = self.db.get_sticker_pack(pack_name)
+            if existing_pack:
+                pack_artist = existing_pack['artist']
+            async with self._lock:
+                self.db.upsert_sticker_pack({
+                    'name': pack_name,
+                    'title': sticker_set.title,
+                    'artist': pack_artist,
+                    'last_update': int(datetime.now().timestamp()),
+                    'sticker_count': len(current_sticker_ids)
+                })
             # Download new stickers concurrently
             async with aiohttp.ClientSession() as session:
-                download_tasks: list[asyncio.Task[None]] = []
+                download_tasks: list[asyncio.Task[StickerRecord | None]] = []
                 for stk in sticker_set.stickers:
-                    # Add to emoji mapping
-                    emoji_mapping[stk.file_unique_id] = stk.emoji or ""
                     # Skip if already downloaded
                     if stk.file_unique_id in existing_stickers:
                         continue
@@ -157,39 +106,20 @@ class StickerPackManager:
                     filename: str = f"{stk.file_unique_id}.{ext}"
                     file_path: Path = pack_dir / filename
                     # Get download URL
-                    file = await context.bot.get_file(stk.file_id)
+                    file: File = await context.bot.get_file(stk.file_id)
                     # Create download task
-                    task = asyncio.create_task(
-                        self._download_and_track(
-                            session,
-                            file.file_path,
-                            file_path,
-                            stk,
-                            stickers_dict,
-                            filename
-                        )
+                    task: asyncio.Task[StickerRecord | None] = asyncio.create_task(
+                        self._download_and_track(session, file.file_path or "", file_path, stk)
                     )
                     download_tasks.append(task)
                 # Download all new stickers concurrently
                 if download_tasks:
-                    _ = await asyncio.gather(*download_tasks)
-            # Save emoji mapping
-            _ = await asyncio.to_thread(
-                emoji_file.write_text,
-                json.dumps(emoji_mapping, ensure_ascii=False),
-                encoding='utf-8'
-            )
-            # Update registry
-            existing_artist: str = pack_info.get('artist', 'Unknown') if pack_info else 'Unknown'
-            self.registry[pack_name] = {
-                'name': pack_name,
-                'title': sticker_set.title,
-                'artist': existing_artist,
-                'last_update': int(datetime.now().timestamp()),
-                'sticker_count': len(stickers_dict),
-                'stickers': stickers_dict
-            }
-            await self._save_registry()
+                    downloaded_stickers: list[StickerRecord | None] = await asyncio.gather(*download_tasks)
+                    # Save to database
+                    async with self._lock:
+                        for sticker_record in downloaded_stickers:
+                            if sticker_record:
+                                self.db.upsert_sticker(pack_name, sticker_record)
             logger.info(f"Successfully processed pack '{pack_name}'")
         except Exception as e:
             logger.error(f"Error processing sticker pack '{pack_name}': {e}", exc_info=True)

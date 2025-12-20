@@ -3,10 +3,10 @@ from functools import partial
 
 from telegram.ext import ApplicationBuilder, MessageHandler, filters
 
-from src.config import BOT_TOKEN, DOWNLOAD_DIR, REGISTRY_FILE, validate_config
-
-from src.bot.manager import StickerPackManager
 from src.bot.handlers import handle_sticker_pack
+from src.bot.manager import StickerPackManager
+from src.config import BOT_TOKEN, DATABASE_FILE, DOWNLOAD_DIR, validate_config
+from src.database import Database
 
 # Configure logging
 logging.basicConfig(
@@ -22,8 +22,11 @@ def main() -> None:
         exit(-1)
     # Create download directory
     DOWNLOAD_DIR.mkdir(parents=True, exist_ok=True)
+    # Initialize database
+    db: Database = Database(DATABASE_FILE)
+    logger.info(f"Database initialized at {DATABASE_FILE}")
     # Initialize sticker pack manager
-    manager: StickerPackManager = StickerPackManager(DOWNLOAD_DIR, REGISTRY_FILE)
+    manager: StickerPackManager = StickerPackManager(DOWNLOAD_DIR, db)
     # Build Telegram bot application
     application = ApplicationBuilder().token(BOT_TOKEN or "").build()
     # Create handler with manager bound to it
