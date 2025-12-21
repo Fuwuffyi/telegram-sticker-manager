@@ -59,31 +59,31 @@ function formatDate(timestamp) {
 function createPackCard(pack) {
    const clone = packCardTemplate.content.cloneNode(true);
    const card = clone.querySelector('.pack-card');
-   // Handle Signal status from template
-   const statusContainer = clone.querySelector('[data-signal-status]');
-   if (pack.signal_url || pack.used_in_custom_packs) {
-      const signalBadge = statusContainer.querySelector('[data-signal-badge]');
-      const signalLink = statusContainer.querySelector('[data-signal-link]');
-      const customBadge = statusContainer.querySelector('[data-custom-badge]');
-      if (pack.signal_url) {
-         signalBadge.hidden = false;
-         signalBadge.textContent = pack.needs_signal_update ? '⚠ Signal (Update Available)' : '✓ On Signal';
-         if (pack.needs_signal_update) {
-            signalBadge.classList.add('needs-update');
-         }
-         signalLink.hidden = false;
-         signalLink.href = pack.signal_url;
+   // Handle badges
+   const badgeContainer = clone.querySelector('[data-badge-container]');
+   // Add custom pack badge if applicable
+   if (pack.used_in_custom_packs) {
+      const customBadge = document.createElement('div');
+      customBadge.className = 'badge badge-custom';
+      customBadge.innerHTML = '▴<span class="badge-tooltip">Used in Custom Packs</span>';
+      badgeContainer.appendChild(customBadge);
+   }
+   // Add Signal badge
+   if (pack.signal_url) {
+      const signalBadge = document.createElement('a');
+      signalBadge.className = pack.needs_signal_update ? 'badge badge-update' : 'badge badge-signal';
+      signalBadge.href = pack.signal_url;
+      signalBadge.target = '_blank';
+      signalBadge.rel = 'noopener noreferrer';
+      if (pack.needs_signal_update) {
+         signalBadge.innerHTML = '✱<span class="badge-tooltip">Update Available on Signal</span>';
       } else {
-         signalBadge.remove();
-         signalLink.remove();
+         signalBadge.innerHTML = '✔<span class="badge-tooltip">On Signal</span>';
       }
-      if (pack.used_in_custom_packs) {
-         customBadge.hidden = false;
-      } else {
-         customBadge.remove();
-      }
-   } else {
-      statusContainer.remove();
+      signalBadge.addEventListener('click', (e) => {
+         e.stopPropagation();
+      });
+      badgeContainer.appendChild(signalBadge);
    }
    if (pack.thumbnails?.length) {
       const thumbnailContainer = clone.querySelector('.pack-thumbnail');
@@ -110,7 +110,6 @@ function createPackCard(pack) {
          await deletePack(pack.name);
       }
    });
-   // Handle Signal upload button from template
    const signalBtn = clone.querySelector('[data-action="upload-signal"]');
    signalBtn.textContent = pack.signal_url ? 'Update Signal' : 'Upload to Signal';
    if (pack.needs_signal_update) {

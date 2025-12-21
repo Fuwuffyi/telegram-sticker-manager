@@ -109,20 +109,24 @@ async function loadCustomPacks(append = false) {
 function createCustomPackCard(pack) {
    const clone = customPackCardTemplate.content.cloneNode(true);
    const card = clone.querySelector('.pack-card');
-   // Handle Signal status from template
-   const statusContainer = clone.querySelector('[data-signal-status]');
+   // Handle badges
+   const badgeContainer = clone.querySelector('[data-badge-container]');
+   // Add Signal badge
    if (pack.signal_url) {
-      const signalBadge = statusContainer.querySelector('[data-signal-badge]');
-      const signalLink = statusContainer.querySelector('[data-signal-link]');
-      signalBadge.hidden = false;
-      signalBadge.textContent = pack.needs_signal_update ? '⚠ Signal (Update Available)' : '✓ On Signal';
+      const signalBadge = document.createElement('a');
+      signalBadge.className = pack.needs_signal_update ? 'badge badge-update' : 'badge badge-signal';
+      signalBadge.href = pack.signal_url;
+      signalBadge.target = '_blank';
+      signalBadge.rel = 'noopener noreferrer';
       if (pack.needs_signal_update) {
-         signalBadge.classList.add('needs-update');
+         signalBadge.innerHTML = '⚠️<span class="badge-tooltip">Update Available on Signal</span>';
+      } else {
+         signalBadge.innerHTML = '✓<span class="badge-tooltip">On Signal</span>';
       }
-      signalLink.hidden = false;
-      signalLink.href = pack.signal_url;
-   } else {
-      statusContainer.remove();
+      signalBadge.addEventListener('click', (e) => {
+         e.stopPropagation();
+      });
+      badgeContainer.appendChild(signalBadge);
    }
    clone.querySelector('[data-field="title"]').textContent = pack.title;
    clone.querySelector('[data-field="name"]').textContent = pack.name;
@@ -133,7 +137,6 @@ function createCustomPackCard(pack) {
          await deletePack(pack.name);
       }
    });
-   // Handle Signal upload button from template
    const signalBtn = clone.querySelector('[data-action="upload-signal"]');
    signalBtn.textContent = pack.signal_url ? 'Update Signal' : 'Upload to Signal';
    if (pack.needs_signal_update) {

@@ -133,6 +133,96 @@ body {
    background: var(--bg-tertiary);
 }
 
+/* Badge Container */
+.badge-container {
+   position: absolute;
+   top: 8px;
+   right: 8px;
+   display: flex;
+   gap: 4px;
+   z-index: 10;
+}
+
+/* Base Badge Style */
+.badge {
+   width: 28px;
+   height: 28px;
+   border-radius: 50%;
+   display: flex;
+   align-items: center;
+   justify-content: center;
+   font-size: 16px;
+   cursor: pointer;
+   transition: transform 0.2s, box-shadow 0.2s;
+   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+   position: relative;
+}
+
+.badge:hover {
+   transform: scale(1.1);
+   box-shadow: 0 3px 6px rgba(0, 0, 0, 0.4);
+}
+
+/* Signal Badge */
+.badge-signal {
+   background: var(--secondary);
+   color: white;
+}
+
+/* Update Badge */
+.badge-update {
+   background: var(--accent);
+   color: var(--bg-primary);
+}
+
+/* Custom Pack Badge */
+.badge-custom {
+   background: #9C27B0;
+   color: white;
+   cursor: default;
+}
+
+/* Tooltip */
+.badge-tooltip {
+   position: absolute;
+   bottom: calc(100% + 8px);
+   right: 0;
+   background: var(--bg-tertiary);
+   color: var(--text-primary);
+   padding: 6px 12px;
+   border-radius: 4px;
+   font-size: 12px;
+   white-space: nowrap;
+   opacity: 0;
+   pointer-events: none;
+   transition: opacity 0.2s;
+   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+   z-index: 100;
+}
+
+.badge-tooltip::after {
+   content: '';
+   position: absolute;
+   top: 100%;
+   right: 8px;
+   border: 5px solid transparent;
+   border-top-color: var(--bg-tertiary);
+}
+
+.badge:hover .badge-tooltip {
+   opacity: 1;
+}
+
+/* Update pack-card to support badges */
+.pack-card {
+   position: relative;
+}
+
+/* Hide old signal status container */
+.signal-status {
+   display: none;
+}
+
 /* Pack Thumbnail */
 .pack-thumbnail {
    display: grid;
