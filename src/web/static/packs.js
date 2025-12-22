@@ -5,6 +5,10 @@ const loading = document.getElementById('loading');
 const emptyState = document.getElementById('emptyState');
 const modal = document.getElementById('modal');
 const resultsCount = document.getElementById('resultsCount');
+const sortBy = document.getElementById('sortBy');
+const filterSignalCheck = document.getElementById('filterSignalCheck');
+const filterNeedsUpdateCheck = document.getElementById('filterNeedsUpdateCheck');
+const filterCustomPacksCheck = document.getElementById('filterCustomPacksCheck');
 
 const packCardTemplate = document.getElementById('packCardTemplate');
 const thumbnailTemplate = document.getElementById('thumbnailTemplate');
@@ -18,6 +22,13 @@ let currentQuery = '';
 let currentModalPage = 1;
 let totalModalPages = 1;
 let isLoadingMore = false;
+let allPacks = [];
+let currentSortBy = 'last_update_desc';
+let currentFilters = {
+   onSignal: false,
+   needsUpdate: false,
+   inCustomPacks: false
+};
 
 searchPacks('');
 
@@ -25,6 +36,33 @@ searchInput.addEventListener('input', (e) => {
    clearTimeout(searchTimeout);
    currentPage = 1;
    searchTimeout = setTimeout(() => searchPacks(e.target.value), 300);
+});
+
+sortBy.addEventListener('change', (e) => {
+   currentSortBy = e.target.value;
+   currentPage = 1;
+   searchPacks(currentQuery);
+});
+
+filterSignalCheck.addEventListener('change', (e) => {
+   currentFilters.onSignal = e.target.checked;
+   document.getElementById('filterSignal').classList.toggle('active', e.target.checked);
+   currentPage = 1;
+   applyFiltersAndSort();
+});
+
+filterNeedsUpdateCheck.addEventListener('change', (e) => {
+   currentFilters.needsUpdate = e.target.checked;
+   document.getElementById('filterNeedsUpdate').classList.toggle('active', e.target.checked);
+   currentPage = 1;
+   applyFiltersAndSort();
+});
+
+filterCustomPacksCheck.addEventListener('change', (e) => {
+   currentFilters.inCustomPacks = e.target.checked;
+   document.getElementById('filterCustomPacks').classList.toggle('active', e.target.checked);
+   currentPage = 1;
+   applyFiltersAndSort();
 });
 
 window.addEventListener('scroll', () => {
@@ -35,7 +73,7 @@ window.addEventListener('scroll', () => {
    if (scrollTop + windowHeight >= docHeight - 500) {
       isLoadingMore = true;
       currentPage++;
-      searchPacks(currentQuery, true);
+      applyFiltersAndSort(true);
    }
 });
 
@@ -59,16 +97,13 @@ function formatDate(timestamp) {
 function createPackCard(pack) {
    const clone = packCardTemplate.content.cloneNode(true);
    const card = clone.querySelector('.pack-card');
-   // Handle badges
    const badgeContainer = clone.querySelector('[data-badge-container]');
-   // Add custom pack badge if applicable
    if (pack.used_in_custom_packs) {
       const customBadge = document.createElement('div');
       customBadge.className = 'badge badge-custom';
       customBadge.innerHTML = '▴<span class="badge-tooltip">Used in Custom Packs</span>';
       badgeContainer.appendChild(customBadge);
    }
-   // Add Signal badge
    if (pack.signal_url) {
       const signalBadge = document.createElement('a');
       signalBadge.className = pack.needs_signal_update ? 'badge badge-update' : 'badge badge-signal';
@@ -133,6 +168,86 @@ function createLoadMoreButton(current, total) {
    return clone;
 }
 
+function sortPacks(packs, sortBy) {
+   const sorted = [...packs];
+   switch (sortBy) {
+      case 'last_update_desc':
+         sorted.sort((a, b) => b.last_update - a.last_update);
+         break;
+      case 'last_update_asc':
+         sorted.sort((a, b) => a.last_update - b.last_update);
+         break;
+      case 'title_asc':
+         sorted.sort((a, b) => a.title.localeCompare(b.title));
+         break;
+      case 'title_desc':
+         sorted.sort((a, b) => b.title.localeCompare(a.title));
+         break;
+      case 'name_asc':
+         sorted.sort((a, b) => a.name.localeCompare(b.name));
+         break;
+      case 'name_desc':
+         sorted.sort((a, b) => b.name.localeCompare(a.name));
+         break;
+      case 'artist_asc':
+         sorted.sort((a, b) => a.artist.localeCompare(b.artist));
+         break;
+      case 'artist_desc':
+         sorted.sort((a, b) => b.artist.localeCompare(a.artist));
+         break;
+      case 'count_desc':
+         sorted.sort((a, b) => b.sticker_count - a.sticker_count);
+         break;
+      case 'count_asc':
+         sorted.sort((a, b) => a.sticker_count - b.sticker_count);
+         break;
+   }
+   return sorted;
+}
+
+function filterPacks(packs, filters) {
+   let filtered = [...packs];
+   if (filters.onSignal) {
+      filtered = filtered.filter(pack => pack.signal_url);
+   }
+   if (filters.needsUpdate) {
+      filtered = filtered.filter(pack => pack.needs_signal_update);
+   }
+   if (filters.inCustomPacks) {
+      filtered = filtered.filter(pack => pack.used_in_custom_packs);
+   }
+   return filtered;
+}
+
+function applyFiltersAndSort(append = false) {
+   if (!append) {
+      loading.style.display = 'block';
+      packsGrid.style.display = 'none';
+      emptyState.style.display = 'none';
+      resultsCount.style.display = 'none';
+   }
+   let filtered = filterPacks(allPacks, currentFilters);
+   let sorted = sortPacks(filtered, currentSortBy);
+   loading.style.display = 'none';
+   isLoadingMore = false;
+   if (sorted.length === 0 && !append) {
+      emptyState.style.display = 'block';
+      return;
+   }
+   const perPage = 50;
+   const startIdx = append ? (currentPage - 1) * perPage : 0;
+   const endIdx = currentPage * perPage;
+   const paginated = sorted.slice(startIdx, endIdx);
+   totalPages = Math.ceil(sorted.length / perPage);
+   if (!append) {
+      resultsCount.style.display = 'block';
+      resultsCount.textContent = `Found ${sorted.length} sticker pack${sorted.length !== 1 ? 's' : ''}`;
+      packsGrid.style.display = 'grid';
+      packsGrid.innerHTML = '';
+   }
+   paginated.forEach(pack => packsGrid.appendChild(createPackCard(pack)));
+}
+
 async function searchPacks(query, append = false) {
    currentQuery = query;
    if (!append) {
@@ -143,22 +258,13 @@ async function searchPacks(query, append = false) {
       currentPage = 1;
    }
    try {
-      const response = await fetch(`/api/packs/search?q=${encodeURIComponent(query)}&page=${currentPage}&per_page=50`);
+      const response = await fetch(`/api/packs/search?q=${encodeURIComponent(query)}&page=1&per_page=10000`);
       const data = await response.json();
-      loading.style.display = 'none';
-      isLoadingMore = false;
-      totalPages = data.total_pages;
-      if (data.packs.length === 0 && !append) {
-         emptyState.style.display = 'block';
-         return;
-      }
-      if (!append) {
-         resultsCount.style.display = 'block';
-         resultsCount.textContent = `Found ${data.total} sticker pack${data.total !== 1 ? 's' : ''}`;
-         packsGrid.style.display = 'grid';
-         packsGrid.innerHTML = '';
-      }
-      data.packs.forEach(pack => packsGrid.appendChild(createPackCard(pack)));
+      allPacks = data.packs.map(pack => ({
+         ...pack,
+         needs_signal_update: pack.signal_uploaded_at && pack.last_update > pack.signal_uploaded_at
+      }));
+      applyFiltersAndSort(append);
    } catch (error) {
       console.error('Error searching packs:', error);
       loading.style.display = 'none';
@@ -220,6 +326,8 @@ async function updateArtist(packName) {
       if (response.ok) {
          input.style.borderColor = 'var(--success)';
          setTimeout(() => input.style.borderColor = '', 1000);
+         const pack = allPacks.find(p => p.name === packName);
+         if (pack) pack.artist = artist;
       }
    } catch (error) {
       console.error('Error updating artist:', error);
@@ -239,7 +347,6 @@ async function uploadToSignal(packName) {
       const data = await response.json();
       if (response.ok) {
          alert(`Successfully uploaded to Signal!\n\nURL: ${data.signal_url}`);
-         // Refresh the pack list to show updated status
          currentPage = 1;
          await searchPacks(currentQuery);
       } else {

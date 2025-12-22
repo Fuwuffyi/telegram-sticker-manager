@@ -1,8 +1,12 @@
 const loading = document.getElementById('loading');
 const customPacksGrid = document.getElementById('customPacksGrid');
 const emptyState = document.getElementById('emptyState');
+const resultsCount = document.getElementById('resultsCount');
 const createModal = document.getElementById('createModal');
 const editModal = document.getElementById('editModal');
+const sortBy = document.getElementById('sortBy');
+const filterSignalCheck = document.getElementById('filterSignalCheck');
+const filterNeedsUpdateCheck = document.getElementById('filterNeedsUpdateCheck');
 
 const customPackCardTemplate = document.getElementById('customPackCardTemplate');
 const editableStickerTemplate = document.getElementById('editableStickerTemplate');
@@ -26,7 +30,34 @@ let stickerSearchTotal = 1;
 let packSearchPage = 1;
 let packSearchTotal = 1;
 
+let allPacks = [];
+let currentSortBy = 'name_asc';
+let currentFilters = {
+   onSignal: false,
+   needsUpdate: false
+};
+
 loadCustomPacks();
+
+sortBy.addEventListener('change', (e) => {
+   currentSortBy = e.target.value;
+   currentPage = 1;
+   applyFiltersAndSort();
+});
+
+filterSignalCheck.addEventListener('change', (e) => {
+   currentFilters.onSignal = e.target.checked;
+   document.getElementById('filterSignal').classList.toggle('active', e.target.checked);
+   currentPage = 1;
+   applyFiltersAndSort();
+});
+
+filterNeedsUpdateCheck.addEventListener('change', (e) => {
+   currentFilters.needsUpdate = e.target.checked;
+   document.getElementById('filterNeedsUpdate').classList.toggle('active', e.target.checked);
+   currentPage = 1;
+   applyFiltersAndSort();
+});
 
 window.addEventListener('scroll', () => {
    if (isLoadingMore || currentPage >= totalPages) return;
@@ -36,7 +67,7 @@ window.addEventListener('scroll', () => {
    if (scrollTop + windowHeight >= docHeight - 500) {
       isLoadingMore = true;
       currentPage++;
-      loadCustomPacks(true);
+      applyFiltersAndSort(true);
    }
 });
 
@@ -75,29 +106,94 @@ document.getElementById('packSearchInput')?.addEventListener('input', (e) => {
    searchTimeout = setTimeout(() => searchPacksToAdd(e.target.value), 300);
 });
 
+function sortPacks(packs, sortBy) {
+   const sorted = [...packs];
+   switch (sortBy) {
+      case 'name_asc':
+         sorted.sort((a, b) => a.name.localeCompare(b.name));
+         break;
+      case 'name_desc':
+         sorted.sort((a, b) => b.name.localeCompare(a.name));
+         break;
+      case 'title_asc':
+         sorted.sort((a, b) => a.title.localeCompare(b.title));
+         break;
+      case 'title_desc':
+         sorted.sort((a, b) => b.title.localeCompare(a.title));
+         break;
+      case 'count_desc':
+         sorted.sort((a, b) => b.sticker_count - a.sticker_count);
+         break;
+      case 'count_asc':
+         sorted.sort((a, b) => a.sticker_count - b.sticker_count);
+         break;
+      case 'modified_desc':
+         sorted.sort((a, b) => (b.last_modified || 0) - (a.last_modified || 0));
+         break;
+      case 'modified_asc':
+         sorted.sort((a, b) => (a.last_modified || 0) - (b.last_modified || 0));
+         break;
+   }
+   return sorted;
+}
+
+function filterPacks(packs, filters) {
+   let filtered = [...packs];
+   if (filters.onSignal) {
+      filtered = filtered.filter(pack => pack.signal_url);
+   }
+   if (filters.needsUpdate) {
+      filtered = filtered.filter(pack => pack.needs_signal_update);
+   }
+   return filtered;
+}
+
+function applyFiltersAndSort(append = false) {
+   if (!append) {
+      loading.style.display = 'block';
+      customPacksGrid.style.display = 'none';
+      emptyState.style.display = 'none';
+      resultsCount.style.display = 'none';
+   }
+   let filtered = filterPacks(allPacks, currentFilters);
+   let sorted = sortPacks(filtered, currentSortBy);
+   loading.style.display = 'none';
+   isLoadingMore = false;
+   if (sorted.length === 0 && !append) {
+      emptyState.style.display = 'block';
+      return;
+   }
+   const perPage = 50;
+   const startIdx = append ? (currentPage - 1) * perPage : 0;
+   const endIdx = currentPage * perPage;
+   const paginated = sorted.slice(startIdx, endIdx);
+   totalPages = Math.ceil(sorted.length / perPage);
+   if (!append) {
+      resultsCount.style.display = 'block';
+      resultsCount.textContent = `Found ${sorted.length} custom pack${sorted.length !== 1 ? 's' : ''}`;
+      customPacksGrid.style.display = 'grid';
+      customPacksGrid.innerHTML = '';
+   }
+   paginated.forEach(pack => customPacksGrid.appendChild(createCustomPackCard(pack)));
+}
+
 async function loadCustomPacks(append = false) {
    if (!append) {
       loading.style.display = 'block';
       customPacksGrid.style.display = 'none';
       emptyState.style.display = 'none';
+      resultsCount.style.display = 'none';
       currentPage = 1;
    }
    try {
-      const response = await fetch(`/api/custom-packs?page=${currentPage}&per_page=50`);
+      const response = await fetch(`/api/custom-packs?page=1&per_page=10000`);
       const data = await response.json();
       const packArray = Object.values(data.packs);
-      loading.style.display = 'none';
-      isLoadingMore = false;
-      totalPages = data.total_pages;
-      if (packArray.length === 0 && !append) {
-         emptyState.style.display = 'block';
-         return;
-      }
-      if (!append) {
-         customPacksGrid.style.display = 'grid';
-         customPacksGrid.innerHTML = '';
-      }
-      packArray.forEach(pack => customPacksGrid.appendChild(createCustomPackCard(pack)));
+      allPacks = packArray.map(pack => ({
+         ...pack,
+         needs_signal_update: pack.signal_uploaded_at && pack.last_modified > pack.signal_uploaded_at
+      }));
+      applyFiltersAndSort(append);
    } catch (error) {
       console.error('Error loading custom packs:', error);
       loading.style.display = 'none';
@@ -109,9 +205,7 @@ async function loadCustomPacks(append = false) {
 function createCustomPackCard(pack) {
    const clone = customPackCardTemplate.content.cloneNode(true);
    const card = clone.querySelector('.pack-card');
-   // Handle badges
    const badgeContainer = clone.querySelector('[data-badge-container]');
-   // Add Signal badge
    if (pack.signal_url) {
       const signalBadge = document.createElement('a');
       signalBadge.className = pack.needs_signal_update ? 'badge badge-update' : 'badge badge-signal';
@@ -119,9 +213,9 @@ function createCustomPackCard(pack) {
       signalBadge.target = '_blank';
       signalBadge.rel = 'noopener noreferrer';
       if (pack.needs_signal_update) {
-         signalBadge.innerHTML = '⚠️<span class="badge-tooltip">Update Available on Signal</span>';
+         signalBadge.innerHTML = '✱<span class="badge-tooltip">Update Available on Signal</span>';
       } else {
-         signalBadge.innerHTML = '✓<span class="badge-tooltip">On Signal</span>';
+         signalBadge.innerHTML = '✔<span class="badge-tooltip">On Signal</span>';
       }
       signalBadge.addEventListener('click', (e) => {
          e.stopPropagation();
@@ -210,7 +304,6 @@ async function uploadCustomPackToSignal(packName) {
       const data = await response.json();
       if (response.ok) {
          alert(`Successfully uploaded to Signal!\n\nURL: ${data.signal_url}`);
-         // Refresh the pack list to show updated status
          currentPage = 1;
          await loadCustomPacks();
       } else {

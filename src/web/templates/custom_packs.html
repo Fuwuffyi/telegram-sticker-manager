@@ -20,6 +20,37 @@
             <button class="btn btn-primary" data-action="create-pack">Create New Pack</button>
             <button class="btn btn-secondary" data-action="export-custom-packs">Export All Custom Packs (JSON)</button>
          </div>
+         <div class="controls-box">
+            <div class="controls-row">
+               <div class="control-group">
+                  <label for="sortBy">Sort By:</label>
+                  <select id="sortBy" class="control-select">
+                     <option value="name_asc">Name (A-Z)</option>
+                     <option value="name_desc">Name (Z-A)</option>
+                     <option value="title_asc">Title (A-Z)</option>
+                     <option value="title_desc">Title (Z-A)</option>
+                     <option value="count_desc">Sticker Count (High-Low)</option>
+                     <option value="count_asc">Sticker Count (Low-High)</option>
+                     <option value="modified_desc">Last Modified (Newest)</option>
+                     <option value="modified_asc">Last Modified (Oldest)</option>
+                  </select>
+               </div>
+               <div class="control-group">
+                  <label>Filters:</label>
+                  <div class="filter-group">
+                     <label class="filter-toggle" id="filterSignal">
+                        <input type="checkbox" id="filterSignalCheck">
+                        <span>On Signal</span>
+                     </label>
+                     <label class="filter-toggle" id="filterNeedsUpdate">
+                        <input type="checkbox" id="filterNeedsUpdateCheck">
+                        <span>Needs Update</span>
+                     </label>
+                  </div>
+               </div>
+            </div>
+         </div>
+         <div id="resultsCount" class="results-count" hidden></div>
          <div id="loading" class="loading">Loading custom packs...</div>
          <div id="customPacksGrid" class="packs-grid" hidden></div>
          <div id="emptyState" class="empty-state" hidden>

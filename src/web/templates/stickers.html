@@ -19,6 +19,23 @@
          <div class="search-box">
             <input type="text" class="search-input" id="searchInput" placeholder="Search stickers" autocomplete="off">
          </div>
+         <div class="controls-box">
+            <div class="controls-row">
+               <div class="control-group">
+                  <label for="sortBy">Sort By:</label>
+                  <select id="sortBy" class="control-select">
+                     <option value="pack_update_desc">Pack Update (Newest)</option>
+                     <option value="pack_update_asc">Pack Update (Oldest)</option>
+                     <option value="pack_name_asc">Pack Name (A-Z)</option>
+                     <option value="pack_name_desc">Pack Name (Z-A)</option>
+                     <option value="pack_title_asc">Pack Title (A-Z)</option>
+                     <option value="pack_title_desc">Pack Title (Z-A)</option>
+                     <option value="artist_asc">Artist (A-Z)</option>
+                     <option value="artist_desc">Artist (Z-A)</option>
+                  </select>
+               </div>
+            </div>
+         </div>
          <div id="resultsCount" class="results-count" hidden></div>
          <div id="loading" class="loading">Loading stickers...</div>
          <div id="stickersGrid" class="stickers-grid" hidden></div>

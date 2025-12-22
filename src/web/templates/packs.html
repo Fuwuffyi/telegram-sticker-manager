@@ -22,12 +22,48 @@
          <div class="search-box">
             <input type="text" class="search-input" id="searchInput" placeholder="Search packs" autocomplete="off">
          </div>
+         <div class="controls-box">
+            <div class="controls-row">
+               <div class="control-group">
+                  <label for="sortBy">Sort By:</label>
+                  <select id="sortBy" class="control-select">
+                     <option value="last_update_desc">Last Update (Newest)</option>
+                     <option value="last_update_asc">Last Update (Oldest)</option>
+                     <option value="title_asc">Title (A-Z)</option>
+                     <option value="title_desc">Title (Z-A)</option>
+                     <option value="name_asc">Name (A-Z)</option>
+                     <option value="name_desc">Name (Z-A)</option>
+                     <option value="artist_asc">Artist (A-Z)</option>
+                     <option value="artist_desc">Artist (Z-A)</option>
+                     <option value="count_desc">Sticker Count (High-Low)</option>
+                     <option value="count_asc">Sticker Count (Low-High)</option>
+                  </select>
+               </div>
+               <div class="control-group">
+                  <label>Filters:</label>
+                  <div class="filter-group">
+                     <label class="filter-toggle" id="filterSignal">
+                        <input type="checkbox" id="filterSignalCheck">
+                        <span>On Signal</span>
+                     </label>
+                     <label class="filter-toggle" id="filterNeedsUpdate">
+                        <input type="checkbox" id="filterNeedsUpdateCheck">
+                        <span>Needs Update</span>
+                     </label>
+                     <label class="filter-toggle" id="filterCustomPacks">
+                        <input type="checkbox" id="filterCustomPacksCheck">
+                        <span>In Custom Packs</span>
+                     </label>
+                  </div>
+               </div>
+            </div>
+         </div>
          <div id="resultsCount" class="results-count" hidden></div>
          <div id="loading" class="loading">Loading packs...</div>
          <div id="packsGrid" class="packs-grid" hidden></div>
          <div id="emptyState" class="empty-state" hidden>
             <h2>No packs found</h2>
-            <p>Try a different search term</p>
+            <p>Try a different search term or filter</p>
          </div>
       </main>
       <!-- Modal for viewing pack stickers -->
