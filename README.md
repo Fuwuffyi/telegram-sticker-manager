@@ -11,7 +11,7 @@ To use this application you need to create a .env file with the following variab
 - `SIGNAL_UUID`: it's Signal messenger's UUID.
 - `SIGNAL_PASSWORD`: it's Signal messenger's UUID.  
 Both Signal messenger's variables are required to upload a sticker pack to signal.
-To get those variables you need to do the following steps on Signal desktop::
+To get those variables you need to do the following steps on Signal desktop:
 1. Run signal using the `--enable-dev-tools` flag.
 2. Open the developer tools (View -> Toggle Developer Tools).
 3. Navigate to the console in the developer tools.
