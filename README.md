@@ -9,7 +9,7 @@ create custom sticker packs out of them.
 To use this application you need to create a .env file with the following variables:
 - `BOT_TOKEN`: is a Telegram bot token, acquired via BotFather on Telegram.
 - `SIGNAL_UUID`: it's Signal messenger's UUID.
-- `SIGNAL_PASSWORD`: it's Signal messenger's UUID.
+- `SIGNAL_PASSWORD`: it's Signal messenger's UUID.  
 Both Signal messenger's variables are required to upload a sticker pack to signal.
 To get those variables you need to do the following steps on Signal desktop::
 1. Run signal using the `--enable-dev-tools` flag.
