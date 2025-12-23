@@ -9,6 +9,7 @@ class StickerRecord(TypedDict):
     file_unique_id: str
     emoji: str | None
     file_path: str
+    display_order: int
 
 class StickerPackRecord(TypedDict):
     name: str
@@ -27,6 +28,7 @@ class StickerSearchResult(TypedDict):
     file_unique_id: str
     emoji: str
     file_path: str
+    display_order: int
 
 class CustomPackSticker(TypedDict):
     pack_name: str
@@ -34,6 +36,7 @@ class CustomPackSticker(TypedDict):
     file_unique_id: str
     file_path: str
     emoji: str
+    display_order: int
 
 class CustomPackRecord(TypedDict):
     name: str
@@ -109,6 +112,7 @@ class Database:
             _ = conn.execute("CREATE INDEX IF NOT EXISTS idx_custom_pack_stickers_pack ON custom_pack_stickers(custom_pack_name)")
             _ = conn.execute("CREATE INDEX IF NOT EXISTS idx_sticker_packs_last_update ON sticker_packs(last_update DESC)")
             _ = conn.execute("CREATE INDEX IF NOT EXISTS idx_custom_pack_stickers_unique_id ON custom_pack_stickers(file_unique_id)")
+            _ = conn.execute("CREATE INDEX IF NOT EXISTS idx_custom_pack_stickers_order ON custom_pack_stickers(custom_pack_name, display_order)")
             conn.commit()
 
     # Sticker Pack Operations
@@ -222,10 +226,10 @@ class Database:
     def get_pack_thumbnail_stickers(self, pack_name: str, limit: int = 4) -> list[StickerRecord]:
         with self._connect() as conn:
             cursor: sqlite3.Cursor = conn.execute("""
-                SELECT file_id, file_unique_id, emoji, file_path
+                SELECT file_id, file_unique_id, emoji, file_path, display_order
                 FROM stickers
                 WHERE pack_name = ?
-                ORDER BY file_unique_id
+                ORDER BY display_order
                 LIMIT ?
             """, (pack_name, limit))
             return [
@@ -233,7 +237,8 @@ class Database:
                     file_id=row['file_id'],
                     file_unique_id=row['file_unique_id'],
                     emoji=row['emoji'],
-                    file_path=row['file_path']
+                    file_path=row['file_path'],
+                    display_order=row['display_order']
                 )
                 for row in cursor.fetchall()
             ]
@@ -260,18 +265,20 @@ class Database:
     def upsert_sticker(self, pack_name: str, sticker: StickerRecord) -> None:
         with self._connect() as conn:
             _ = conn.execute("""
-                INSERT INTO stickers (pack_name, file_id, file_unique_id, emoji, file_path)
-                VALUES (?, ?, ?, ?, ?)
+                INSERT INTO stickers (pack_name, file_id, file_unique_id, emoji, file_path, display_order)
+                VALUES (?, ?, ?, ?, ?, ?)
                 ON CONFLICT(file_unique_id) DO UPDATE SET
                     file_id = excluded.file_id,
                     emoji = excluded.emoji,
-                    file_path = excluded.file_path
+                    file_path = excluded.file_path,
+                    display_order = excluded.display_order
             """, (
                 pack_name,
                 sticker['file_id'],
                 sticker['file_unique_id'],
                 sticker['emoji'],
-                sticker['file_path']
+                sticker['file_path'],
+                sticker['display_order']
             ))
             conn.commit()
 
@@ -284,12 +291,12 @@ class Database:
                 (pack_name,)
             )
             total: int = cursor.fetchone()[0]
-            # Get paginated results
+            # Get paginated results ordered by display_order
             cursor = conn.execute("""
-                SELECT file_id, file_unique_id, emoji, file_path
+                SELECT file_id, file_unique_id, emoji, file_path, display_order
                 FROM stickers
                 WHERE pack_name = ?
-                ORDER BY file_unique_id
+                ORDER BY display_order
                 LIMIT ? OFFSET ?
             """, (pack_name, per_page, offset))
             stickers = [
@@ -297,11 +304,20 @@ class Database:
                     file_id=row['file_id'],
                     file_unique_id=row['file_unique_id'],
                     emoji=row['emoji'],
-                    file_path=row['file_path']
+                    file_path=row['file_path'],
+                    display_order=row['display_order']
                 )
                 for row in cursor.fetchall()
             ]
             return stickers, total
+
+    def get_sticker_unique_ids_with_order(self, pack_name: str) -> dict[str, int]:
+        with self._connect() as conn:
+            cursor: sqlite3.Cursor = conn.execute(
+                "SELECT file_unique_id, display_order FROM stickers WHERE pack_name = ?",
+                (pack_name,)
+            )
+            return {row['file_unique_id']: row['display_order'] for row in cursor.fetchall()}
 
     def get_sticker_unique_ids(self, pack_name: str) -> set[str]:
         with self._connect() as conn:
@@ -333,10 +349,10 @@ class Database:
                 total: int = cursor.fetchone()[0]
                 # Get paginated results
                 cursor = conn.execute("""
-                    SELECT s.pack_name, p.title, p.artist, s.file_unique_id, s.emoji, s.file_path
+                    SELECT s.pack_name, p.title, p.artist, s.file_unique_id, s.emoji, s.file_path, s.display_order
                     FROM stickers s
                     JOIN sticker_packs p ON s.pack_name = p.name
-                    ORDER BY p.last_update DESC
+                    ORDER BY p.last_update DESC, s.display_order
                     LIMIT ? OFFSET ?
                 """, (per_page, offset))
             else:
@@ -353,14 +369,14 @@ class Database:
                 total = cursor.fetchone()[0]
                 # Get paginated results
                 cursor = conn.execute("""
-                    SELECT s.pack_name, p.title, p.artist, s.file_unique_id, s.emoji, s.file_path
+                    SELECT s.pack_name, p.title, p.artist, s.file_unique_id, s.emoji, s.file_path, s.display_order
                     FROM stickers s
                     JOIN sticker_packs p ON s.pack_name = p.name
                     WHERE s.pack_name LIKE ? COLLATE NOCASE
                        OR p.title LIKE ? COLLATE NOCASE
                        OR p.artist LIKE ? COLLATE NOCASE
                        OR s.emoji LIKE ? COLLATE NOCASE
-                    ORDER BY p.last_update DESC
+                    ORDER BY p.last_update DESC, s.display_order
                     LIMIT ? OFFSET ?
                 """, (query_pattern, query_pattern, query_pattern, query_pattern, per_page, offset))
             stickers = [
@@ -370,7 +386,8 @@ class Database:
                     artist=row['artist'],
                     file_unique_id=row['file_unique_id'],
                     emoji=row['emoji'] or "",
-                    file_path=row['file_path']
+                    file_path=row['file_path'],
+                    display_order=row['display_order']
                 )
                 for row in cursor.fetchall()
             ]
@@ -445,7 +462,7 @@ class Database:
                 )
                 # Delete existing stickers
                 _ = conn.execute("DELETE FROM custom_pack_stickers WHERE custom_pack_name = ?", (name,))
-                # Insert new stickers in batch
+                # Insert new stickers in batch with their order preserved
                 if stickers:
                     _ = conn.executemany("""
                         INSERT INTO custom_pack_stickers 
@@ -484,9 +501,9 @@ class Database:
                 WHERE custom_pack_name = ?
             """, (pack_name,))
             total: int = cursor.fetchone()[0]
-            # Get paginated results
+            # Get paginated results ordered by display_order
             cursor = conn.execute("""
-                SELECT cps.pack_name, p.title, s.file_unique_id, s.file_path, s.emoji
+                SELECT cps.pack_name, p.title, s.file_unique_id, s.file_path, s.emoji, cps.display_order
                 FROM custom_pack_stickers cps
                 JOIN stickers s ON cps.file_unique_id = s.file_unique_id
                 JOIN sticker_packs p ON cps.pack_name = p.name
@@ -500,7 +517,8 @@ class Database:
                     pack_title=row['title'],
                     file_unique_id=row['file_unique_id'],
                     file_path=row['file_path'],
-                    emoji=row['emoji'] or ""
+                    emoji=row['emoji'] or "",
+                    display_order=row['display_order']
                 )
                 for row in cursor.fetchall()
             ]
@@ -531,7 +549,7 @@ class Database:
 
     def export_stickers_to_json(self, pack_name: str) -> str:
         stickers, _ = self.get_pack_stickers(pack_name, page=1, per_page=10000)
-        stickers_dict: dict[str, dict[str, str | None]] = {
+        stickers_dict: dict[str, dict[str, str | int | None]] = {
             sticker['file_unique_id']: dict(sticker)
             for sticker in stickers
         }
@@ -543,7 +561,7 @@ class Database:
                 "SELECT name, title, signal_url, signal_uploaded_at, last_modified FROM custom_packs"
             )
             packs = cursor.fetchall()
-            result: dict[str, dict[str, str | int | None | list[dict[str, str]]]] = {}
+            result: dict[str, dict[str, str | int | None | list[dict[str, str | int]]]] = {}
             for row in packs:
                 pack_name: str = row['name']
                 pack_title: str = row['title']

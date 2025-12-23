@@ -50,7 +50,6 @@ python -m src.web.main
 
 ## TO-DO List:
 - Way to update stickers without re-sending them to the bot.
-- Store initial sticker order in database (custom packs will inherit it in order of addition to the custom pack).
 - Filters for "on signal"/"updated"/"in custom packs" badges can be SHOW/HIDE/OFF.
 - Improve export to json (maybe exporting everything within a zip?)
   - Make it work properly with both individual packs, custom ones and entire database.
