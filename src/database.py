@@ -76,6 +76,7 @@ class Database:
                     file_unique_id TEXT PRIMARY KEY,
                     emoji TEXT,
                     file_path TEXT NOT NULL,
+                    display_order INTEGER NOT NULL,
                     FOREIGN KEY (pack_name) REFERENCES sticker_packs(name) ON DELETE CASCADE
                 )
             """)
@@ -104,6 +105,7 @@ class Database:
             # Create indices for better search performance
             _ = conn.execute("CREATE INDEX IF NOT EXISTS idx_stickers_pack ON stickers(pack_name)")
             _ = conn.execute("CREATE INDEX IF NOT EXISTS idx_stickers_emoji ON stickers(emoji)")
+            _ = conn.execute("CREATE INDEX IF NOT EXISTS idx_stickers_order ON stickers(pack_name, display_order)")
             _ = conn.execute("CREATE INDEX IF NOT EXISTS idx_custom_pack_stickers_pack ON custom_pack_stickers(custom_pack_name)")
             _ = conn.execute("CREATE INDEX IF NOT EXISTS idx_sticker_packs_last_update ON sticker_packs(last_update DESC)")
             _ = conn.execute("CREATE INDEX IF NOT EXISTS idx_custom_pack_stickers_unique_id ON custom_pack_stickers(file_unique_id)")
