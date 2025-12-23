@@ -205,7 +205,7 @@ def upload_pack_to_signal(pack_name: str) -> tuple[Response, int] | Response:
         if not signal_url:
             return jsonify({'error': 'Failed to upload to Signal'}), 500
         # Update database with Signal URL
-        uploaded_at = int(time.time())
+        uploaded_at: int = int(time.time())
         _ = db.update_pack_signal_url(pack_name, signal_url, uploaded_at)
         return jsonify({
             'success': True,

@@ -24,7 +24,7 @@ class UpdateService:
             await self._app.initialize()
         return self._app
 
-    async def update_pack(self, pack_name: str) -> bool:
+    async def update_pack(self, pack_name: str, context = None) -> bool:
         try:
             logger.info(f"Starting update for pack: {pack_name}")
             app = await self._get_application()
@@ -44,10 +44,10 @@ class UpdateService:
             telegram_sticker = await app.bot.get_sticker_set(pack_name)
             if telegram_sticker and telegram_sticker.stickers:
                 # Use manager to process the pack
-                context = _create_context(app)
+                ctx = context if context else _create_context(app)
                 await self.manager.process_sticker_pack(
-                    telegram_sticker.stickers[0], 
-                    context
+                    telegram_sticker.stickers[0],
+                    ctx
                 )
                 logger.info(f"Successfully updated pack: {pack_name}")
                 return True
@@ -61,9 +61,11 @@ class UpdateService:
         # Get all packs
         packs, _ = self.db.search_sticker_packs("", page=1, per_page=10000)
         logger.info(f"Starting update for {len(packs)} packs")
+        app = await self._get_application()
+        context = _create_context(app)
         for pack in packs:
             pack_name: str = pack['name']
-            success: bool = await self.update_pack(pack_name)
+            success: bool = await self.update_pack(pack_name, context)
             results[pack_name] = success
             # Small delay to avoid rate limiting
             await asyncio.sleep(0.5)
