@@ -5,7 +5,23 @@ create custom sticker packs out of them.
 
 ---
 
-## Usage:
+## Installation:
+1. Create a python virtual environment
+```sh
+python -m venv .venv
+```
+
+2. Install the requirements
+```sh
+pip install -r requirements.txt
+```
+
+3. Enter the environment
+```sh
+source .venv/bin/activate
+```
+
+4. Set up environment variables  
 To use this application you need to create a .env file with the following variables:
 - `BOT_TOKEN`: is a Telegram bot token, acquired via BotFather on Telegram.
 - `SIGNAL_UUID`: it's Signal messenger's UUID.
@@ -21,6 +37,20 @@ To get those variables you need to do the following steps on Signal desktop:
 
 ---
 
+## Usage:
+To use the scripts there are two main files:
+```sh
+# To run telegram bot
+python -m src.bot.main
+# To run web application
+python -m src.web.main
+```
+
+---
+
 ## TO-DO List:
+- Way to update stickers without re-sending them to the bot.
+- Store initial sticker order in database (custom packs will inherit it in order of addition to the custom pack).
+- Filters for "on signal"/"updated"/"in custom packs" badges can be SHOW/HIDE/OFF.
 - Improve export to json (maybe exporting everything within a zip?)
-  - Make it work properly with both individual packs, custom ones and entire database
+  - Make it work properly with both individual packs, custom ones and entire database.
