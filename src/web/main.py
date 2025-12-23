@@ -8,10 +8,15 @@ from rapidfuzz import fuzz
 
 from src.config import DATABASE_FILE, DOWNLOAD_DIR
 from src.database import CustomPackSticker, Database, StickerPackRecord, StickerRecord, StickerSearchResult
+from src.bot.update_service import UpdateService
 from src.web.signal_uploader import upload_custom_pack_to_signal, upload_telegram_pack_to_signal
 
 app: Flask = Flask(__name__)
 db: Database = Database(DATABASE_FILE)
+update_service: UpdateService = UpdateService(
+    download_dir=Path(DOWNLOAD_DIR),
+    db=db,
+)
 
 def fuzzy_search_packs(query: str, packs: list[StickerPackRecord]) -> list[StickerPackRecord]:
     if not query:
@@ -212,6 +217,58 @@ def upload_pack_to_signal(pack_name: str) -> tuple[Response, int] | Response:
     except Exception as e:
         app.logger.error(f"Error uploading to Signal: {e}", exc_info=True)
         return jsonify({'error': f'Internal error: {str(e)}'}), 500
+
+@app.route('/api/packs/update-all', methods=['POST'])
+def update_all_packs():
+    try:
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        try:
+            results: dict[str, bool] = loop.run_until_complete(
+                update_service.update_all_packs()
+            )
+        finally:
+            loop.close()
+        return jsonify({
+            'success': True,
+            'results': results,
+            'updated': sum(1 for v in results.values() if v),
+            'failed': sum(1 for v in results.values() if not v),
+        })
+    except Exception as e:
+        app.logger.error(f"Bulk update failed: {e}", exc_info=True)
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+@app.route('/api/packs/<pack_name>/update', methods=['POST'])
+def update_single_pack(pack_name: str):
+    try:
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        try:
+            success: bool = loop.run_until_complete(
+                update_service.update_pack(pack_name)
+            )
+        finally:
+            loop.close()
+        if not success:
+            return jsonify({
+                'success': False,
+                'pack': pack_name,
+                'error': 'Update failed'
+            }), 500
+        return jsonify({
+            'success': True,
+            'pack': pack_name
+        })
+    except Exception as e:
+        app.logger.error(f"Pack update failed: {e}", exc_info=True)
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
 
 @app.route('/api/stickers/search')
 def search_stickers() -> Response:
@@ -414,7 +471,7 @@ def serve_sticker(pack_name: str, filename: str) -> Response:
     return send_from_directory(pack_dir, filename)
 
 def main() -> None:
-    app.run(debug=True, host='0.0.0.0', port=5000)
+    app.run(debug=False, host='0.0.0.0', port=5000)
 
 if __name__ == '__main__':
     main()
