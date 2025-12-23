@@ -9,6 +9,10 @@ const sortBy = document.getElementById('sortBy');
 const filterSignalCheck = document.getElementById('filterSignalCheck');
 const filterNeedsUpdateCheck = document.getElementById('filterNeedsUpdateCheck');
 const filterCustomPacksCheck = document.getElementById('filterCustomPacksCheck');
+const updateAllBtn = document.getElementById('updateAllPacksBtn');
+if (updateAllBtn) {
+   updateAllBtn.addEventListener('click', updateAllPacks);
+}
 
 const packCardTemplate = document.getElementById('packCardTemplate');
 const thumbnailTemplate = document.getElementById('thumbnailTemplate');
@@ -151,7 +155,70 @@ function createPackCard(pack) {
       signalBtn.classList.add('needs-update');
    }
    signalBtn.addEventListener('click', () => uploadToSignal(pack.name));
+   const updateBtn = clone.querySelector('[data-action="update-pack"]');
+   updateBtn.dataset.packName = pack.name;
+   updateBtn.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      await updateSinglePack(pack.name, updateBtn);
+   });
    return clone;
+}
+
+async function updateAllPacks() {
+   if (!confirm('Update ALL sticker packs? This may take a long time.')) {
+      return;
+   }
+   updateAllBtn.disabled = true;
+   const originalText = updateAllBtn.textContent;
+   updateAllBtn.textContent = 'Updating all…';
+   try {
+      const response = await fetch('/api/packs/update-all', {
+         method: 'POST'
+      });
+      const data = await response.json();
+      if (!response.ok || !data.success) {
+         throw new Error(data.error || 'Bulk update failed');
+      }
+      alert(
+         `Update complete:\n` +
+         `${data.updated} succeeded\n` +
+         `${data.failed} failed`
+      );
+      currentPage = 1;
+      await searchPacks(currentQuery);
+   } catch (err) {
+      console.error(err);
+      alert(`Failed to update all packs:\n${err.message}`);
+   } finally {
+      updateAllBtn.disabled = false;
+      updateAllBtn.textContent = originalText;
+   }
+}
+
+async function updateSinglePack(packName, button) {
+   if (!confirm(`Update sticker pack "${packName}"?`)) return;
+   button.disabled = true;
+   const originalText = button.textContent;
+   button.textContent = 'Updating…';
+   try {
+      const response = await fetch(
+         `/api/packs/${encodeURIComponent(packName)}/update`,
+         { method: 'POST' }
+      );
+      const data = await response.json();
+      if (!response.ok || !data.success) {
+         throw new Error(data.error || 'Update failed');
+      }
+      // Refresh pack list so last_update changes
+      currentPage = 1;
+      await searchPacks(currentQuery);
+   } catch (err) {
+      console.error(err);
+      alert(`Failed to update pack:\n${err.message}`);
+   } finally {
+      button.disabled = false;
+      button.textContent = originalText;
+   }
 }
 
 function createStickerItem(packName, sticker) {
