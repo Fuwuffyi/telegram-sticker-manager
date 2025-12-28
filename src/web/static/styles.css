@@ -155,6 +155,7 @@ body {
    align-items: center;
 }
 
+/* Tri-State Filter Toggle */
 .filter-toggle {
    position: relative;
    display: inline-flex;
@@ -202,25 +203,47 @@ body {
    display: flex;
    align-items: center;
    justify-content: center;
+   position: absolute;
+   left: 14px;
 }
 
 .filter-toggle:hover {
    background: var(--border);
 }
 
-.filter-toggle.active {
-   background: var(--accent);
-   border-color: var(--accent);
-   color: var(--bg-primary);
+/* Show only (green with checkmark) */
+.filter-toggle.show {
+   background: #4CAF50;
+   border-color: #4CAF50;
+   color: white;
 }
 
-.filter-toggle.active::before {
-   background: var(--accent);
-   border-color: var(--accent);
+.filter-toggle.show::before {
+   background: #4CAF50;
+   border-color: #4CAF50;
 }
 
-.filter-toggle.active::after {
+.filter-toggle.show::after {
    opacity: 1;
+   color: white;
+}
+
+/* Hide (red with X) */
+.filter-toggle.hide {
+   background: var(--error);
+   border-color: var(--error);
+   color: white;
+}
+
+.filter-toggle.hide::before {
+   background: var(--error);
+   border-color: var(--error);
+}
+
+.filter-toggle.hide::after {
+   content: "✕";
+   opacity: 1;
+   color: white;
 }
 
 /* Pack Grid */
@@ -485,6 +508,15 @@ body {
 
 .btn-signal:hover {
    background: var(--secondary-dark);
+}
+
+.btn-warning {
+   background: #FF9800;
+   color: var(--bg-primary);
+}
+
+.btn-warning:hover {
+   background: #F57C00;
 }
 
 .btn-remove {

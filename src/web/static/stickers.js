@@ -11,38 +11,48 @@ const sortBy = document.getElementById('sortBy');
 const stickerCardTemplate = document.getElementById('stickerCardTemplate');
 
 let currentEditSticker = null;
-let currentPage = 1;
-let totalPages = 1;
 let currentQuery = '';
 let isLoadingMore = false;
 let allStickers = [];
 let currentSortBy = 'pack_update_desc';
 
+let displayedCount = 0;
+const itemsPerBatch = 100;
+
 searchStickers('');
 
 searchInput.addEventListener('input', (e) => {
    clearTimeout(searchTimeout);
-   currentPage = 1;
    searchTimeout = setTimeout(() => searchStickers(e.target.value), 300);
 });
 
 sortBy.addEventListener('change', (e) => {
    currentSortBy = e.target.value;
-   currentPage = 1;
    applySort();
 });
 
 window.addEventListener('scroll', () => {
-   if (isLoadingMore || currentPage >= totalPages) return;
+   if (isLoadingMore) return;
    const scrollTop = window.scrollY;
    const windowHeight = window.innerHeight;
    const docHeight = document.documentElement.scrollHeight;
    if (scrollTop + windowHeight >= docHeight - 500) {
-      isLoadingMore = true;
-      currentPage++;
-      applySort(true);
+      loadMoreStickers();
    }
 });
+
+function loadMoreStickers() {
+   if (isLoadingMore) return;
+   let sorted = sortStickers(allStickers, currentSortBy);
+   if (displayedCount >= sorted.length) return;
+   isLoadingMore = true;
+   const startIdx = displayedCount;
+   const endIdx = Math.min(displayedCount + itemsPerBatch, sorted.length);
+   const batch = sorted.slice(startIdx, endIdx);
+   batch.forEach(item => stickersGrid.appendChild(createStickerCard(item)));
+   displayedCount = endIdx;
+   isLoadingMore = false;
+}
 
 document.addEventListener('click', (e) => {
    const action = e.target.dataset.action;
@@ -103,53 +113,42 @@ function sortStickers(stickers, sortBy) {
    return sorted;
 }
 
-function applySort(append = false) {
-   if (!append) {
-      loading.style.display = 'block';
-      stickersGrid.style.display = 'none';
-      emptyState.style.display = 'none';
-      resultsCount.style.display = 'none';
-   }
+function applySort() {
+   loading.style.display = 'block';
+   stickersGrid.style.display = 'none';
+   emptyState.style.display = 'none';
+   resultsCount.style.display = 'none';
    let sorted = sortStickers(allStickers, currentSortBy);
    loading.style.display = 'none';
-   isLoadingMore = false;
-   if (sorted.length === 0 && !append) {
+   if (sorted.length === 0) {
       emptyState.style.display = 'block';
       return;
    }
-   const perPage = 100;
-   const startIdx = append ? (currentPage - 1) * perPage : 0;
-   const endIdx = currentPage * perPage;
-   const paginated = sorted.slice(startIdx, endIdx);
-   totalPages = Math.ceil(sorted.length / perPage);
-   if (!append) {
-      resultsCount.style.display = 'block';
-      resultsCount.textContent = `Found ${sorted.length} sticker${sorted.length !== 1 ? 's' : ''}`;
-      stickersGrid.style.display = 'grid';
-      stickersGrid.innerHTML = '';
-   }
-   paginated.forEach(item => stickersGrid.appendChild(createStickerCard(item)));
+   resultsCount.style.display = 'block';
+   resultsCount.textContent = `Found ${sorted.length} sticker${sorted.length !== 1 ? 's' : ''}`;
+   stickersGrid.style.display = 'grid';
+   stickersGrid.innerHTML = '';
+   displayedCount = 0;
+   const firstBatch = sorted.slice(0, Math.min(itemsPerBatch, sorted.length));
+   firstBatch.forEach(item => stickersGrid.appendChild(createStickerCard(item)));
+   displayedCount = firstBatch.length;
 }
 
-async function searchStickers(query, append = false) {
+async function searchStickers(query) {
    currentQuery = query;
-   if (!append) {
-      loading.style.display = 'block';
-      stickersGrid.style.display = 'none';
-      emptyState.style.display = 'none';
-      resultsCount.style.display = 'none';
-      currentPage = 1;
-   }
+   loading.style.display = 'block';
+   stickersGrid.style.display = 'none';
+   emptyState.style.display = 'none';
+   resultsCount.style.display = 'none';
    try {
-      const response = await fetch(`/api/stickers/search?q=${encodeURIComponent(query)}&page=1&per_page=10000`);
+      const response = await fetch(`/api/stickers/search?q=${encodeURIComponent(query)}`);
       const data = await response.json();
       allStickers = data.stickers;
-      applySort(append);
+      applySort();
    } catch (error) {
       console.error('Error searching stickers:', error);
       loading.style.display = 'none';
-      isLoadingMore = false;
-      if (!append) emptyState.style.display = 'block';
+      emptyState.style.display = 'block';
    }
 }
 
@@ -180,7 +179,6 @@ async function saveEmoji() {
       if (response.ok) {
          currentEditSticker.emoji = emojis;
          closeEmojiModal();
-         currentPage = 1;
          searchStickers(searchInput.value);
       } else {
          alert('Failed to save emoji');

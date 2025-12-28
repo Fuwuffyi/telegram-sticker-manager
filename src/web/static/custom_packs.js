@@ -5,8 +5,8 @@ const resultsCount = document.getElementById('resultsCount');
 const createModal = document.getElementById('createModal');
 const editModal = document.getElementById('editModal');
 const sortBy = document.getElementById('sortBy');
-const filterSignalCheck = document.getElementById('filterSignalCheck');
-const filterNeedsUpdateCheck = document.getElementById('filterNeedsUpdateCheck');
+const filterSignal = document.getElementById('filterSignal');
+const filterNeedsUpdate = document.getElementById('filterNeedsUpdate');
 
 const customPackCardTemplate = document.getElementById('customPackCardTemplate');
 const editableStickerTemplate = document.getElementById('editableStickerTemplate');
@@ -21,8 +21,6 @@ let selectedStickersToAdd = new Set();
 let selectedPacksToAdd = new Set();
 
 let searchTimeout;
-let currentPage = 1;
-let totalPages = 1;
 let isLoadingMore = false;
 
 let stickerSearchPage = 1;
@@ -32,44 +30,69 @@ let packSearchTotal = 1;
 
 let allPacks = [];
 let currentSortBy = 'name_asc';
+
 let currentFilters = {
-   onSignal: false,
-   needsUpdate: false
+   onSignal: 'disabled',
+   needsUpdate: 'disabled'
 };
+
+let displayedCount = 0;
+const itemsPerBatch = 50;
 
 loadCustomPacks();
 
 sortBy.addEventListener('change', (e) => {
    currentSortBy = e.target.value;
-   currentPage = 1;
    applyFiltersAndSort();
 });
 
-filterSignalCheck.addEventListener('change', (e) => {
-   currentFilters.onSignal = e.target.checked;
-   document.getElementById('filterSignal').classList.toggle('active', e.target.checked);
-   currentPage = 1;
-   applyFiltersAndSort();
+filterSignal.addEventListener('click', (e) => {
+   e.preventDefault();
+   cycleFilterState('onSignal', filterSignal);
 });
 
-filterNeedsUpdateCheck.addEventListener('change', (e) => {
-   currentFilters.needsUpdate = e.target.checked;
-   document.getElementById('filterNeedsUpdate').classList.toggle('active', e.target.checked);
-   currentPage = 1;
-   applyFiltersAndSort();
+filterNeedsUpdate.addEventListener('click', (e) => {
+   e.preventDefault();
+   cycleFilterState('needsUpdate', filterNeedsUpdate);
 });
+
+function cycleFilterState(filterKey, element) {
+   const states = ['disabled', 'show', 'hide'];
+   const currentIdx = states.indexOf(currentFilters[filterKey]);
+   const nextIdx = (currentIdx + 1) % states.length;
+   currentFilters[filterKey] = states[nextIdx];
+   element.classList.remove('show', 'hide');
+   if (states[nextIdx] === 'show') {
+      element.classList.add('show');
+   } else if (states[nextIdx] === 'hide') {
+      element.classList.add('hide');
+   }
+   applyFiltersAndSort();
+}
 
 window.addEventListener('scroll', () => {
-   if (isLoadingMore || currentPage >= totalPages) return;
+   if (isLoadingMore) return;
    const scrollTop = window.scrollY;
    const windowHeight = window.innerHeight;
    const docHeight = document.documentElement.scrollHeight;
    if (scrollTop + windowHeight >= docHeight - 500) {
-      isLoadingMore = true;
-      currentPage++;
-      applyFiltersAndSort(true);
+      loadMoreCustomPacks();
    }
 });
+
+function loadMoreCustomPacks() {
+   if (isLoadingMore) return;
+   let filtered = filterPacks(allPacks, currentFilters);
+   let sorted = sortPacks(filtered, currentSortBy);
+   if (displayedCount >= sorted.length) return;
+   isLoadingMore = true;
+   const startIdx = displayedCount;
+   const endIdx = Math.min(displayedCount + itemsPerBatch, sorted.length);
+   const batch = sorted.slice(startIdx, endIdx);
+   batch.forEach(pack => customPacksGrid.appendChild(createCustomPackCard(pack)));
+   displayedCount = endIdx;
+   isLoadingMore = false;
+}
 
 document.addEventListener('click', async (e) => {
    const action = e.target.dataset.action;
@@ -139,66 +162,59 @@ function sortPacks(packs, sortBy) {
 
 function filterPacks(packs, filters) {
    let filtered = [...packs];
-   if (filters.onSignal) {
+   if (filters.onSignal === 'show') {
       filtered = filtered.filter(pack => pack.signal_url);
+   } else if (filters.onSignal === 'hide') {
+      filtered = filtered.filter(pack => !pack.signal_url);
    }
-   if (filters.needsUpdate) {
+   if (filters.needsUpdate === 'show') {
       filtered = filtered.filter(pack => pack.needs_signal_update);
+   } else if (filters.needsUpdate === 'hide') {
+      filtered = filtered.filter(pack => !pack.needs_signal_update);
    }
    return filtered;
 }
 
-function applyFiltersAndSort(append = false) {
-   if (!append) {
-      loading.style.display = 'block';
-      customPacksGrid.style.display = 'none';
-      emptyState.style.display = 'none';
-      resultsCount.style.display = 'none';
-   }
+function applyFiltersAndSort() {
+   loading.style.display = 'block';
+   customPacksGrid.style.display = 'none';
+   emptyState.style.display = 'none';
+   resultsCount.style.display = 'none';
    let filtered = filterPacks(allPacks, currentFilters);
    let sorted = sortPacks(filtered, currentSortBy);
    loading.style.display = 'none';
-   isLoadingMore = false;
-   if (sorted.length === 0 && !append) {
+   if (sorted.length === 0) {
       emptyState.style.display = 'block';
       return;
    }
-   const perPage = 50;
-   const startIdx = append ? (currentPage - 1) * perPage : 0;
-   const endIdx = currentPage * perPage;
-   const paginated = sorted.slice(startIdx, endIdx);
-   totalPages = Math.ceil(sorted.length / perPage);
-   if (!append) {
-      resultsCount.style.display = 'block';
-      resultsCount.textContent = `Found ${sorted.length} custom pack${sorted.length !== 1 ? 's' : ''}`;
-      customPacksGrid.style.display = 'grid';
-      customPacksGrid.innerHTML = '';
-   }
-   paginated.forEach(pack => customPacksGrid.appendChild(createCustomPackCard(pack)));
+   resultsCount.style.display = 'block';
+   resultsCount.textContent = `Found ${sorted.length} custom pack${sorted.length !== 1 ? 's' : ''}`;
+   customPacksGrid.style.display = 'grid';
+   customPacksGrid.innerHTML = '';
+   displayedCount = 0;
+   const firstBatch = sorted.slice(0, Math.min(itemsPerBatch, sorted.length));
+   firstBatch.forEach(pack => customPacksGrid.appendChild(createCustomPackCard(pack)));
+   displayedCount = firstBatch.length;
 }
 
-async function loadCustomPacks(append = false) {
-   if (!append) {
-      loading.style.display = 'block';
-      customPacksGrid.style.display = 'none';
-      emptyState.style.display = 'none';
-      resultsCount.style.display = 'none';
-      currentPage = 1;
-   }
+async function loadCustomPacks() {
+   loading.style.display = 'block';
+   customPacksGrid.style.display = 'none';
+   emptyState.style.display = 'none';
+   resultsCount.style.display = 'none';
    try {
-      const response = await fetch(`/api/custom-packs?page=1&per_page=10000`);
+      const response = await fetch('/api/custom-packs');
       const data = await response.json();
       const packArray = Object.values(data.packs);
       allPacks = packArray.map(pack => ({
          ...pack,
          needs_signal_update: pack.signal_uploaded_at && pack.last_modified > pack.signal_uploaded_at
       }));
-      applyFiltersAndSort(append);
+      applyFiltersAndSort();
    } catch (error) {
       console.error('Error loading custom packs:', error);
       loading.style.display = 'none';
-      isLoadingMore = false;
-      if (!append) emptyState.style.display = 'block';
+      emptyState.style.display = 'block';
    }
 }
 
@@ -215,7 +231,7 @@ function createCustomPackCard(pack) {
       if (pack.needs_signal_update) {
          signalBadge.innerHTML = '✱<span class="badge-tooltip">Update Available on Signal</span>';
       } else {
-         signalBadge.innerHTML = '✔<span class="badge-tooltip">On Signal</span>';
+         signalBadge.innerHTML = '✓<span class="badge-tooltip">On Signal</span>';
       }
       signalBadge.addEventListener('click', (e) => {
          e.stopPropagation();
@@ -265,7 +281,6 @@ async function createNewPack() {
       });
       if (response.ok) {
          closeCreateModal();
-         currentPage = 1;
          loadCustomPacks();
       } else {
          const error = await response.json();
@@ -281,7 +296,6 @@ async function deletePack(packName) {
    try {
       const response = await fetch(`/api/custom-packs/${encodeURIComponent(packName)}`, { method: 'DELETE' });
       if (response.ok) {
-         currentPage = 1;
          loadCustomPacks();
       } else {
          alert('Failed to delete pack');
@@ -304,7 +318,6 @@ async function uploadCustomPackToSignal(packName) {
       const data = await response.json();
       if (response.ok) {
          alert(`Successfully uploaded to Signal!\n\nURL: ${data.signal_url}`);
-         currentPage = 1;
          await loadCustomPacks();
       } else {
          alert(`Failed to upload to Signal: ${data.error}`);
@@ -387,22 +400,12 @@ async function searchStickersToAdd(query, append = false) {
       stickerSearchPage = 1;
    }
    try {
-      const response = await fetch(`/api/stickers/search?q=${encodeURIComponent(query)}&page=${stickerSearchPage}&per_page=100`);
+      const response = await fetch(`/api/stickers/search?q=${encodeURIComponent(query)}`);
       const data = await response.json();
-      stickerSearchTotal = data.total_pages;
       if (!append) {
          grid.innerHTML = '';
-      } else {
-         const loadMoreBtn = grid.querySelector('.load-more-btn');
-         if (loadMoreBtn) loadMoreBtn.remove();
       }
       data.stickers.forEach(item => grid.appendChild(createSelectableSticker(item)));
-      if (stickerSearchPage < stickerSearchTotal) {
-         const loadMore = loadMoreTemplate.content.cloneNode(true);
-         loadMore.querySelector('[data-field="text"]').textContent = `Load More (${stickerSearchPage}/${stickerSearchTotal})`;
-         loadMore.querySelector('button').dataset.action = 'load-more-search-stickers';
-         grid.appendChild(loadMore);
-      }
    } catch (error) {
       console.error('Error searching stickers:', error);
       grid.innerHTML = '<div class="error">Failed to load stickers</div>';
@@ -410,10 +413,6 @@ async function searchStickersToAdd(query, append = false) {
 }
 
 async function loadMoreSearchStickers() {
-   if (stickerSearchPage >= stickerSearchTotal) return;
-   stickerSearchPage++;
-   const query = document.getElementById('stickerSearchInput').value;
-   await searchStickersToAdd(query, true);
 }
 
 function createSelectableSticker(item) {
@@ -462,22 +461,12 @@ async function searchPacksToAdd(query, append = false) {
       packSearchPage = 1;
    }
    try {
-      const response = await fetch(`/api/packs/search?q=${encodeURIComponent(query)}&page=${packSearchPage}&per_page=50`);
+      const response = await fetch(`/api/packs/search?q=${encodeURIComponent(query)}`);
       const data = await response.json();
-      packSearchTotal = data.total_pages;
       if (!append) {
          grid.innerHTML = '';
-      } else {
-         const loadMoreBtn = grid.querySelector('.load-more-btn');
-         if (loadMoreBtn) loadMoreBtn.remove();
       }
       data.packs.forEach(pack => grid.appendChild(createSelectablePack(pack)));
-      if (packSearchPage < packSearchTotal) {
-         const loadMore = loadMoreTemplate.content.cloneNode(true);
-         loadMore.querySelector('[data-field="text"]').textContent = `Load More (${packSearchPage}/${packSearchTotal})`;
-         loadMore.querySelector('button').dataset.action = 'load-more-search-packs';
-         grid.appendChild(loadMore);
-      }
    } catch (error) {
       console.error('Error searching packs:', error);
       grid.innerHTML = '<div class="error">Failed to load packs</div>';
@@ -485,10 +474,6 @@ async function searchPacksToAdd(query, append = false) {
 }
 
 async function loadMoreSearchPacks() {
-   if (packSearchPage >= packSearchTotal) return;
-   packSearchPage++;
-   const query = document.getElementById('packSearchInput').value;
-   await searchPacksToAdd(query, true);
 }
 
 function createSelectablePack(pack) {
@@ -515,7 +500,7 @@ function createSelectablePack(pack) {
 
 async function addPackStickers(packName) {
    try {
-      const response = await fetch(`/api/packs/${encodeURIComponent(packName)}?page=1&per_page=1000`);
+      const response = await fetch(`/api/packs/${encodeURIComponent(packName)}`);
       const pack = await response.json();
       pack.stickers.forEach(sticker => {
          if (!currentPackStickers.some(s => s.pack_name === packName && s.file_unique_id === sticker.file_unique_id)) {
@@ -550,7 +535,6 @@ async function savePackChanges() {
       });
       if (response.ok) {
          closeEditModal();
-         currentPage = 1;
          loadCustomPacks();
       } else {
          alert('Failed to save changes');

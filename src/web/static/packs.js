@@ -6,10 +6,11 @@ const emptyState = document.getElementById('emptyState');
 const modal = document.getElementById('modal');
 const resultsCount = document.getElementById('resultsCount');
 const sortBy = document.getElementById('sortBy');
-const filterSignalCheck = document.getElementById('filterSignalCheck');
-const filterNeedsUpdateCheck = document.getElementById('filterNeedsUpdateCheck');
-const filterCustomPacksCheck = document.getElementById('filterCustomPacksCheck');
+const filterSignal = document.getElementById('filterSignal');
+const filterNeedsUpdate = document.getElementById('filterNeedsUpdate');
+const filterCustomPacks = document.getElementById('filterCustomPacks');
 const updateAllBtn = document.getElementById('updateAllPacksBtn');
+
 if (updateAllBtn) {
    updateAllBtn.addEventListener('click', updateAllPacks);
 }
@@ -28,10 +29,11 @@ let totalModalPages = 1;
 let isLoadingMore = false;
 let allPacks = [];
 let currentSortBy = 'last_update_desc';
+
 let currentFilters = {
-   onSignal: false,
-   needsUpdate: false,
-   inCustomPacks: false
+   onSignal: 'disabled',
+   needsUpdate: 'disabled',
+   inCustomPacks: 'disabled'
 };
 
 searchPacks('');
@@ -45,41 +47,65 @@ searchInput.addEventListener('input', (e) => {
 sortBy.addEventListener('change', (e) => {
    currentSortBy = e.target.value;
    currentPage = 1;
-   searchPacks(currentQuery);
-});
-
-filterSignalCheck.addEventListener('change', (e) => {
-   currentFilters.onSignal = e.target.checked;
-   document.getElementById('filterSignal').classList.toggle('active', e.target.checked);
-   currentPage = 1;
    applyFiltersAndSort();
 });
 
-filterNeedsUpdateCheck.addEventListener('change', (e) => {
-   currentFilters.needsUpdate = e.target.checked;
-   document.getElementById('filterNeedsUpdate').classList.toggle('active', e.target.checked);
-   currentPage = 1;
-   applyFiltersAndSort();
+filterSignal.addEventListener('click', (e) => {
+   e.preventDefault();
+   cycleFilterState('onSignal', filterSignal);
 });
 
-filterCustomPacksCheck.addEventListener('change', (e) => {
-   currentFilters.inCustomPacks = e.target.checked;
-   document.getElementById('filterCustomPacks').classList.toggle('active', e.target.checked);
+filterNeedsUpdate.addEventListener('click', (e) => {
+   e.preventDefault();
+   cycleFilterState('needsUpdate', filterNeedsUpdate);
+});
+
+filterCustomPacks.addEventListener('click', (e) => {
+   e.preventDefault();
+   cycleFilterState('inCustomPacks', filterCustomPacks);
+});
+
+function cycleFilterState(filterKey, element) {
+   const states = ['disabled', 'show', 'hide'];
+   const currentIdx = states.indexOf(currentFilters[filterKey]);
+   const nextIdx = (currentIdx + 1) % states.length;
+   currentFilters[filterKey] = states[nextIdx];
+   element.classList.remove('show', 'hide');
+   if (states[nextIdx] === 'show') {
+      element.classList.add('show');
+   } else if (states[nextIdx] === 'hide') {
+      element.classList.add('hide');
+   }
    currentPage = 1;
    applyFiltersAndSort();
-});
+}
+
+let displayedCount = 0;
+const itemsPerBatch = 50;
 
 window.addEventListener('scroll', () => {
-   if (isLoadingMore || currentPage >= totalPages) return;
+   if (isLoadingMore) return;
    const scrollTop = window.scrollY;
    const windowHeight = window.innerHeight;
    const docHeight = document.documentElement.scrollHeight;
    if (scrollTop + windowHeight >= docHeight - 500) {
-      isLoadingMore = true;
-      currentPage++;
-      applyFiltersAndSort(true);
+      loadMorePacks();
    }
 });
+
+function loadMorePacks() {
+   if (isLoadingMore) return;
+   let filtered = filterPacks(allPacks, currentFilters);
+   let sorted = sortPacks(filtered, currentSortBy);
+   if (displayedCount >= sorted.length) return;
+   isLoadingMore = true;
+   const startIdx = displayedCount;
+   const endIdx = Math.min(displayedCount + itemsPerBatch, sorted.length);
+   const batch = sorted.slice(startIdx, endIdx);
+   batch.forEach(pack => packsGrid.appendChild(createPackCard(pack)));
+   displayedCount = endIdx;
+   isLoadingMore = false;
+}
 
 document.addEventListener('click', async (e) => {
    const action = e.target.dataset.action;
@@ -117,7 +143,7 @@ function createPackCard(pack) {
       if (pack.needs_signal_update) {
          signalBadge.innerHTML = '✱<span class="badge-tooltip">Update Available on Signal</span>';
       } else {
-         signalBadge.innerHTML = '✔<span class="badge-tooltip">On Signal</span>';
+         signalBadge.innerHTML = '✓<span class="badge-tooltip">On Signal</span>';
       }
       signalBadge.addEventListener('click', (e) => {
          e.stopPropagation();
@@ -184,7 +210,6 @@ async function updateAllPacks() {
          `${data.updated} succeeded\n` +
          `${data.failed} failed`
       );
-      currentPage = 1;
       await searchPacks(currentQuery);
    } catch (err) {
       console.error(err);
@@ -209,8 +234,6 @@ async function updateSinglePack(packName, button) {
       if (!response.ok || !data.success) {
          throw new Error(data.error || 'Update failed');
       }
-      // Refresh pack list so last_update changes
-      currentPage = 1;
       await searchPacks(currentQuery);
    } catch (err) {
       console.error(err);
@@ -274,69 +297,64 @@ function sortPacks(packs, sortBy) {
 
 function filterPacks(packs, filters) {
    let filtered = [...packs];
-   if (filters.onSignal) {
+   if (filters.onSignal === 'show') {
       filtered = filtered.filter(pack => pack.signal_url);
+   } else if (filters.onSignal === 'hide') {
+      filtered = filtered.filter(pack => !pack.signal_url);
    }
-   if (filters.needsUpdate) {
+   if (filters.needsUpdate === 'show') {
       filtered = filtered.filter(pack => pack.needs_signal_update);
+   } else if (filters.needsUpdate === 'hide') {
+      filtered = filtered.filter(pack => !pack.needs_signal_update);
    }
-   if (filters.inCustomPacks) {
+   if (filters.inCustomPacks === 'show') {
       filtered = filtered.filter(pack => pack.used_in_custom_packs);
+   } else if (filters.inCustomPacks === 'hide') {
+      filtered = filtered.filter(pack => !pack.used_in_custom_packs);
    }
    return filtered;
 }
 
-function applyFiltersAndSort(append = false) {
-   if (!append) {
-      loading.style.display = 'block';
-      packsGrid.style.display = 'none';
-      emptyState.style.display = 'none';
-      resultsCount.style.display = 'none';
-   }
+function applyFiltersAndSort() {
+   loading.style.display = 'block';
+   packsGrid.style.display = 'none';
+   emptyState.style.display = 'none';
+   resultsCount.style.display = 'none';
    let filtered = filterPacks(allPacks, currentFilters);
    let sorted = sortPacks(filtered, currentSortBy);
    loading.style.display = 'none';
-   isLoadingMore = false;
-   if (sorted.length === 0 && !append) {
+   if (sorted.length === 0) {
       emptyState.style.display = 'block';
       return;
    }
-   const perPage = 50;
-   const startIdx = append ? (currentPage - 1) * perPage : 0;
-   const endIdx = currentPage * perPage;
-   const paginated = sorted.slice(startIdx, endIdx);
-   totalPages = Math.ceil(sorted.length / perPage);
-   if (!append) {
-      resultsCount.style.display = 'block';
-      resultsCount.textContent = `Found ${sorted.length} sticker pack${sorted.length !== 1 ? 's' : ''}`;
-      packsGrid.style.display = 'grid';
-      packsGrid.innerHTML = '';
-   }
-   paginated.forEach(pack => packsGrid.appendChild(createPackCard(pack)));
+   resultsCount.style.display = 'block';
+   resultsCount.textContent = `Found ${sorted.length} sticker pack${sorted.length !== 1 ? 's' : ''}`;
+   packsGrid.style.display = 'grid';
+   packsGrid.innerHTML = '';
+   displayedCount = 0;
+   const firstBatch = sorted.slice(0, Math.min(itemsPerBatch, sorted.length));
+   firstBatch.forEach(pack => packsGrid.appendChild(createPackCard(pack)));
+   displayedCount = firstBatch.length;
 }
 
-async function searchPacks(query, append = false) {
+async function searchPacks(query) {
    currentQuery = query;
-   if (!append) {
-      loading.style.display = 'block';
-      packsGrid.style.display = 'none';
-      emptyState.style.display = 'none';
-      resultsCount.style.display = 'none';
-      currentPage = 1;
-   }
+   loading.style.display = 'block';
+   packsGrid.style.display = 'none';
+   emptyState.style.display = 'none';
+   resultsCount.style.display = 'none';
    try {
-      const response = await fetch(`/api/packs/search?q=${encodeURIComponent(query)}&page=1&per_page=10000`);
+      const response = await fetch(`/api/packs/search?q=${encodeURIComponent(query)}`);
       const data = await response.json();
       allPacks = data.packs.map(pack => ({
          ...pack,
          needs_signal_update: pack.signal_uploaded_at && pack.last_update > pack.signal_uploaded_at
       }));
-      applyFiltersAndSort(append);
+      applyFiltersAndSort();
    } catch (error) {
       console.error('Error searching packs:', error);
       loading.style.display = 'none';
-      isLoadingMore = false;
-      if (!append) emptyState.style.display = 'block';
+      emptyState.style.display = 'block';
    }
 }
 
@@ -414,7 +432,6 @@ async function uploadToSignal(packName) {
       const data = await response.json();
       if (response.ok) {
          alert(`Successfully uploaded to Signal!\n\nURL: ${data.signal_url}`);
-         currentPage = 1;
          await searchPacks(currentQuery);
       } else {
          alert(`Failed to upload to Signal: ${data.error}`);
@@ -429,7 +446,6 @@ async function deletePack(packName) {
    try {
       const response = await fetch(`/api/packs/${encodeURIComponent(packName)}`, { method: 'DELETE' });
       if (response.ok) {
-         currentPage = 1;
          await searchPacks(currentQuery);
       } else {
          const error = await response.json();
