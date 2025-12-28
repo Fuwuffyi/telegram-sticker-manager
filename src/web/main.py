@@ -76,9 +76,7 @@ def custom_packs_page() -> str:
 @app.route('/api/packs/search')
 def search_packs() -> Response:
     query: str = request.args.get('q', '')
-    page: int = int(request.args.get('page', 1))
-    per_page: int = int(request.args.get('per_page', 50))
-    packs, total = db.search_sticker_packs(query, page, per_page)
+    packs, total = db.search_sticker_packs(query, page=1, per_page=100000)
     filtered_packs: list[StickerPackRecord] = fuzzy_search_packs(query, packs)
     # Get thumbnails for each pack
     packs_with_thumbnails = []
@@ -100,10 +98,7 @@ def search_packs() -> Response:
         packs_with_thumbnails.append(pack_dict)
     return jsonify({
         'packs': packs_with_thumbnails,
-        'total': total,
-        'page': page,
-        'per_page': per_page,
-        'total_pages': (total + per_page - 1) // per_page
+        'total': total
     })
 
 @app.route('/api/packs/<pack_name>')
@@ -141,7 +136,7 @@ def delete_pack(pack_name: str) -> tuple[Response, int] | Response:
     try:
         if not db.get_sticker_pack(pack_name):
             return jsonify({'error': 'Pack not found'}), 404
-        # Delete from database first
+        # Delete from database
         success: bool = db.delete_sticker_pack(pack_name)
         if not success:
             return jsonify({'error': 'Failed to delete pack from database'}), 500
@@ -273,9 +268,7 @@ def update_single_pack(pack_name: str):
 @app.route('/api/stickers/search')
 def search_stickers() -> Response:
     query: str = request.args.get('q', '')
-    page: int = int(request.args.get('page', 1))
-    per_page: int = int(request.args.get('per_page', 100))
-    stickers, total = db.search_stickers(query, page, per_page)
+    stickers, total = db.search_stickers(query, page=1, per_page=100000)
     filtered_stickers: list[StickerSearchResult] = fuzzy_search_stickers(query, stickers)
     results: list[dict[str, str | dict[str, str]]] = [
         {
@@ -293,20 +286,16 @@ def search_stickers() -> Response:
     ]
     return jsonify({
         'stickers': results,
-        'total': total,
-        'page': page,
-        'per_page': per_page,
-        'total_pages': (total + per_page - 1) // per_page
+        'total': total
     })
 
 @app.route('/api/custom-packs', methods=['GET'])
 def get_custom_packs() -> Response:
-    page: int = int(request.args.get('page', 1))
-    per_page: int = int(request.args.get('per_page', 50))
-    packs_with_counts, total = db.get_all_custom_packs(page, per_page)
+    packs_with_counts, total = db.get_all_custom_packs(page=1, per_page=100000)
     result = {}
     for pack, count in packs_with_counts:
-        stickers, _ = db.get_custom_pack_stickers(pack['name'], page=1, per_page=4)
+        # Get stickers
+        stickers, _ = db.get_custom_pack_stickers(pack['name'], page=1, per_page=100000)
         # Check if pack needs update
         needs_signal_update: bool = (
             pack.get('signal_uploaded_at') is not None and
@@ -323,10 +312,7 @@ def get_custom_packs() -> Response:
         }
     return jsonify({
         'packs': result,
-        'total': total,
-        'page': page,
-        'per_page': per_page,
-        'total_pages': (total + per_page - 1) // per_page
+        'total': total
     })
 
 @app.route('/api/custom-packs', methods=['POST'])
@@ -346,9 +332,8 @@ def get_custom_pack(pack_name: str) -> tuple[Response, int] | Response:
     pack = db.get_custom_pack(pack_name)
     if not pack:
         return jsonify({'error': 'Pack not found'}), 404
-    page: int = int(request.args.get('page', 1))
-    per_page: int = int(request.args.get('per_page', 100))
-    stickers, total = db.get_custom_pack_stickers(pack_name, page, per_page)
+    # Get stickers
+    stickers, total = db.get_custom_pack_stickers(pack_name, page=1, per_page=100000)
     needs_signal_update: bool = (
         pack.get('signal_uploaded_at') is not None and
         pack.get('last_modified', 0) > pack.get('signal_uploaded_at', 0)
@@ -360,10 +345,7 @@ def get_custom_pack(pack_name: str) -> tuple[Response, int] | Response:
         'signal_uploaded_at': pack.get('signal_uploaded_at'),
         'needs_signal_update': needs_signal_update,
         'stickers': [dict(s) for s in stickers],
-        'total': total,
-        'page': page,
-        'per_page': per_page,
-        'total_pages': (total + per_page - 1) // per_page
+        'total': total
     })
 
 @app.route('/api/custom-packs/<pack_name>', methods=['PUT'])

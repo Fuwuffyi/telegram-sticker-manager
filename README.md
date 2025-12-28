@@ -50,9 +50,8 @@ python -m src.web.main
 
 ## TO-DO List:
 - Bug fixes on sticker updates.
-- Bug fixes in custom packs not showing all elements.
-- Bug fixes in page limits.
 - Improve custom pack sticker/sticker pack selection.
+- Make custom pack sticker pack selection disable remove all stickers from said pack.
 - Filters for "on signal"/"updated"/"in custom packs" badges can be SHOW/HIDE/OFF.
 - Improve export to json (maybe exporting everything within a zip?)
   - Make it work properly with both individual packs, custom ones and entire database.
