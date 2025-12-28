@@ -169,24 +169,45 @@ function createPackCard(pack) {
    artistInput.value = pack.artist || 'Unknown';
    artistInput.id = `artist-${pack.name}`;
    clone.querySelector('[data-action="save-artist"]').addEventListener('click', () => updateArtist(pack.name));
-   clone.querySelector('[data-action="view-stickers"]').addEventListener('click', () => showPack(pack.name));
-   clone.querySelector('[data-action="delete-pack"]').addEventListener('click', async () => {
-      if (confirm(`Delete pack "${pack.title}"? This will permanently delete all ${pack.sticker_count} stickers.`)) {
-         await deletePack(pack.name);
-      }
-   });
-   const signalBtn = clone.querySelector('[data-action="upload-signal"]');
-   signalBtn.textContent = pack.signal_url ? 'Update Signal' : 'Upload to Signal';
+   const actionsContainer = clone.querySelector('.pack-actions');
+   actionsContainer.innerHTML = '';
+   const firstRow = document.createElement('div');
+   firstRow.className = 'pack-actions-row';
+   const viewBtn = document.createElement('button');
+   viewBtn.className = 'btn btn-primary';
+   viewBtn.textContent = 'View Stickers';
+   viewBtn.addEventListener('click', () => showPack(pack.name));
+   firstRow.appendChild(viewBtn);
+   const signalBtn = document.createElement('button');
+   signalBtn.className = 'btn btn-signal';
+   signalBtn.textContent = pack.signal_url ? 'Update Signal' : 'Signal Upload';
    if (pack.needs_signal_update) {
       signalBtn.classList.add('needs-update');
    }
    signalBtn.addEventListener('click', () => uploadToSignal(pack.name));
-   const updateBtn = clone.querySelector('[data-action="update-pack"]');
+   firstRow.appendChild(signalBtn);
+   actionsContainer.appendChild(firstRow);
+   const secondRow = document.createElement('div');
+   secondRow.className = 'pack-actions-row';
+   const updateBtn = document.createElement('button');
+   updateBtn.className = 'btn btn-warning';
+   updateBtn.textContent = 'Update Pack';
    updateBtn.dataset.packName = pack.name;
    updateBtn.addEventListener('click', async (e) => {
       e.stopPropagation();
       await updateSinglePack(pack.name, updateBtn);
    });
+   secondRow.appendChild(updateBtn);
+   const deleteBtn = document.createElement('button');
+   deleteBtn.className = 'btn btn-danger';
+   deleteBtn.textContent = 'Delete';
+   deleteBtn.addEventListener('click', async () => {
+      if (confirm(`Delete pack "${pack.title}"? This will permanently delete all ${pack.sticker_count} stickers.`)) {
+         await deletePack(pack.name);
+      }
+   });
+   secondRow.appendChild(deleteBtn);
+   actionsContainer.appendChild(secondRow);
    return clone;
 }
 

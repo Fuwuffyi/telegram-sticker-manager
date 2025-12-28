@@ -123,6 +123,7 @@ body {
    display: flex;
    flex-direction: column;
    gap: 8px;
+   min-width: 180px;
 }
 
 .control-group label {
@@ -458,6 +459,12 @@ body {
 }
 
 .pack-actions {
+   display: flex;
+   flex-direction: column;
+   gap: 8px;
+}
+
+.pack-actions-row {
    display: flex;
    gap: 8px;
 }
