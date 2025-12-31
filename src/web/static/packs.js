@@ -166,7 +166,7 @@ function createPackCard(pack) {
    clone.querySelector('[data-field="sticker_count"]').textContent = `${pack.sticker_count} stickers`;
    clone.querySelector('[data-field="last_update"]').textContent = formatDate(pack.last_update);
    const artistInput = clone.querySelector('[data-field="artist-input"]');
-   artistInput.value = pack.artist || 'Unknown';
+   artistInput.value = pack.artist || 'Unclassified';
    artistInput.id = `artist-${pack.name}`;
    clone.querySelector('[data-action="save-artist"]').addEventListener('click', () => updateArtist(pack.name));
    const actionsContainer = clone.querySelector('.pack-actions');
@@ -422,7 +422,7 @@ async function loadMoreStickers() {
 
 async function updateArtist(packName) {
    const input = document.getElementById(`artist-${packName}`);
-   const artist = input.value.trim() || 'Unknown';
+   const artist = input.value.trim() || 'Unclassified';
    try {
       const response = await fetch(`/api/packs/${encodeURIComponent(packName)}/artist`, {
          method: 'POST',

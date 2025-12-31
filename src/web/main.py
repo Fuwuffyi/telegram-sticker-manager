@@ -160,7 +160,7 @@ def update_pack_artist(pack_name: str) -> tuple[Response, int] | Response:
     data = request.get_json()
     if not data:
         return jsonify({'error': 'Invalid request'}), 400
-    artist: str = data.get('artist', 'Unknown')
+    artist: str = data.get('artist', 'Unclassified')
     success: bool = db.update_pack_artist(pack_name, artist)
     if success:
         return jsonify({'success': True, 'artist': artist})

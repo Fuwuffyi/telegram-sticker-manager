@@ -92,7 +92,7 @@ class StickerPackManager:
                 logger.info(f"First time download: {len(current_sticker_ids)} stickers")
             pack_dir: Path = self._get_pack_dir(pack_name)
             # Update pack info in database
-            pack_artist: str = 'Unknown'
+            pack_artist: str = 'Unclassified'
             existing_pack = self.db.get_sticker_pack(pack_name)
             if existing_pack:
                 pack_artist = existing_pack['artist']
