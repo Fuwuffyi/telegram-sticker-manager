@@ -226,7 +226,6 @@ def upload_pack_to_signal(pack_name: str) -> tuple[Response, int] | Response:
 def update_all_packs():
     try:
         loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
         try:
             results: dict[str, bool] = loop.run_until_complete(
                 update_service.update_all_packs()
@@ -236,47 +235,41 @@ def update_all_packs():
         return jsonify({
             'success': True,
             'results': results,
-            'updated': sum(1 for v in results.values() if v),
-            'failed': sum(1 for v in results.values() if not v),
+            'updated': sum(v for v in results.values()),
+            'failed': sum(not v for v in results.values()),
         })
     except Exception as e:
-        app.logger.error(f"Bulk update failed: {e}", exc_info=True)
+        app.logger.error("Bulk update failed", exc_info=True)
         return jsonify({
             'success': False,
-            'error': str(e)
+            'error': str(e),
         }), 500
 
 @app.route('/api/packs/<pack_name>/update', methods=['POST'])
 def update_single_pack(pack_name: str):
     try:
         loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
         try:
             success: bool = loop.run_until_complete(
                 update_service.update_pack(pack_name)
             )
         finally:
-            try:
-                loop.run_until_complete(loop.shutdown_asyncgens())
-            except:
-                pass
             loop.close()
-            asyncio.set_event_loop(None)
         if not success:
             return jsonify({
                 'success': False,
                 'pack': pack_name,
-                'error': 'Update failed'
+                'error': 'Update failed',
             }), 500
         return jsonify({
             'success': True,
-            'pack': pack_name
+            'pack': pack_name,
         })
     except Exception as e:
-        app.logger.error(f"Pack update failed: {e}", exc_info=True)
+        app.logger.error("Pack update failed", exc_info=True)
         return jsonify({
             'success': False,
-            'error': str(e)
+            'error': str(e),
         }), 500
 
 @app.route('/api/stickers/search')
