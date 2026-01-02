@@ -76,11 +76,17 @@ def custom_packs_page() -> str:
 @app.route('/api/packs/search')
 def search_packs() -> Response:
     query: str = request.args.get('q', '')
-    packs, total = db.search_sticker_packs(query, page=1, per_page=100000)
+    page: int = int(request.args.get('page', 1))
+    per_page: int = int(request.args.get('per_page', 100000))
+    packs, _ = db.search_sticker_packs(query, page=1, per_page=100000)
     filtered_packs: list[StickerPackRecord] = fuzzy_search_packs(query, packs)
+    # Apply pagination
+    start_idx = (page - 1) * per_page
+    end_idx = start_idx + per_page
+    paginated_packs = filtered_packs[start_idx:end_idx]
     # Get thumbnails for each pack
     packs_with_thumbnails = []
-    for pack in filtered_packs:
+    for pack in paginated_packs:
         thumbnails: list[StickerRecord] = db.get_pack_thumbnail_stickers(pack['name'], limit=4)
         pack_dict = dict(pack)
         pack_dict['thumbnails'] = [
@@ -98,7 +104,10 @@ def search_packs() -> Response:
         packs_with_thumbnails.append(pack_dict)
     return jsonify({
         'packs': packs_with_thumbnails,
-        'total': total
+        'total': len(filtered_packs),
+        'page': page,
+        'per_page': per_page,
+        'has_more': end_idx < len(filtered_packs)
     })
 
 @app.route('/api/packs/<pack_name>')
@@ -247,7 +256,12 @@ def update_single_pack(pack_name: str):
                 update_service.update_pack(pack_name)
             )
         finally:
+            try:
+                loop.run_until_complete(loop.shutdown_asyncgens())
+            except:
+                pass
             loop.close()
+            asyncio.set_event_loop(None)
         if not success:
             return jsonify({
                 'success': False,
@@ -294,8 +308,8 @@ def get_custom_packs() -> Response:
     packs_with_counts, total = db.get_all_custom_packs(page=1, per_page=100000)
     result = {}
     for pack, count in packs_with_counts:
-        # Get stickers
-        stickers, _ = db.get_custom_pack_stickers(pack['name'], page=1, per_page=100000)
+        # Get first 2 stickers as thumbnails
+        thumbnails, _ = db.get_custom_pack_stickers(pack['name'], page=1, per_page=2)
         # Check if pack needs update
         needs_signal_update: bool = (
             pack.get('signal_uploaded_at') is not None and
@@ -307,8 +321,15 @@ def get_custom_packs() -> Response:
             'signal_url': pack.get('signal_url'),
             'signal_uploaded_at': pack.get('signal_uploaded_at'),
             'needs_signal_update': needs_signal_update,
-            'stickers': stickers,
-            'sticker_count': count
+            'sticker_count': count,
+            'thumbnails': [
+                {
+                    'pack_name': s['pack_name'],
+                    'file_path': s['file_path'],
+                    'emoji': s['emoji']
+                }
+                for s in thumbnails
+            ]
         }
     return jsonify({
         'packs': result,
@@ -364,7 +385,8 @@ def update_custom_pack(pack_name: str) -> tuple[Response, int] | Response:
                 pack_title=s.get('pack_title', ''),
                 file_unique_id=s.get('file_unique_id', ''),
                 file_path=s.get('file_path', ''),
-                emoji=s.get('emoji', '')
+                emoji=s.get('emoji', ''),
+                display_order=0  # Will be set by database
             )
             for s in stickers_data
         ]

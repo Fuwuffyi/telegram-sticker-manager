@@ -89,19 +89,19 @@
                <button class="tab-btn" data-tab="add-stickers">Add Stickers</button>
                <button class="tab-btn" data-tab="add-packs">Add From Packs</button>
             </div>
-            <div class="tab-content active" id="current-stickers">
+            <div class="tab-content active" id="current-stickers" style="max-height: 60vh; overflow-y: auto;">
                <div id="currentStickersGrid" class="stickers-grid"></div>
                <div id="currentEmpty" class="empty-state" hidden>
                   <p>No stickers in this pack yet</p>
                </div>
             </div>
-            <div class="tab-content" id="add-stickers">
+            <div class="tab-content" id="add-stickers" style="max-height: 60vh; overflow-y: auto;">
                <div class="search-box">
                   <input type="text" id="stickerSearchInput" class="search-input" placeholder="Search stickers to add...">
                </div>
                <div id="searchStickersGrid" class="stickers-grid"></div>
             </div>
-            <div class="tab-content" id="add-packs">
+            <div class="tab-content" id="add-packs" style="max-height: 60vh; overflow-y: auto;">
                <div class="search-box">
                   <input type="text" id="packSearchInput" class="search-input" placeholder="Search packs to add...">
                </div>
@@ -116,6 +116,7 @@
       <template id="customPackCardTemplate">
          <div class="pack-card">
             <div class="badge-container" data-badge-container></div>
+            <div class="pack-thumbnail"></div>
             <div class="pack-header">
                <div class="pack-title" data-field="title"></div>
                <div class="pack-name" data-field="name"></div>
@@ -159,6 +160,7 @@
       <!-- Selectable Pack Template -->
       <template id="selectablePackTemplate">
          <div class="pack-card selectable">
+            <div class="pack-thumbnail"></div>
             <div class="pack-header">
                <div class="pack-title" data-field="title"></div>
                <div class="pack-name" data-field="name"></div>
@@ -168,6 +170,10 @@
             </div>
             <div class="selection-indicator"></div>
          </div>
+      </template>
+      <!-- Thumbnail Template -->
+      <template id="thumbnailTemplate">
+         <img data-field="src" alt="" loading="lazy">
       </template>
       <!-- Load More Button Template -->
       <template id="loadMoreTemplate">

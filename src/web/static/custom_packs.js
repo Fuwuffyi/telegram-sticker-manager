@@ -14,19 +14,24 @@ const selectableStickerTemplate = document.getElementById('selectableStickerTemp
 const selectablePackTemplate = document.getElementById('selectablePackTemplate');
 const loadMoreTemplate = document.getElementById('loadMoreTemplate');
 const loadingTemplate = document.getElementById('loadingTemplate');
+const thumbnailTemplate = document.getElementById('thumbnailTemplate');
 
 let currentEditingPack = null;
 let currentPackStickers = [];
-let selectedStickersToAdd = new Set();
-let selectedPacksToAdd = new Set();
+let selectedPacksToAdd = new Map();
 
 let searchTimeout;
 let isLoadingMore = false;
 
 let stickerSearchPage = 1;
-let stickerSearchTotal = 1;
+let stickerSearchHasMore = false;
+let stickerSearchQuery = '';
+let isLoadingStickers = false;
+
 let packSearchPage = 1;
-let packSearchTotal = 1;
+let packSearchHasMore = false;
+let packSearchQuery = '';
+let isLoadingPacks = false;
 
 let allPacks = [];
 let currentSortBy = 'name_asc';
@@ -110,23 +115,45 @@ document.addEventListener('click', async (e) => {
       await exportCustomPacks();
    } else if (e.target.classList.contains('tab-btn')) {
       switchTab(e.target.dataset.tab);
-   } else if (action === 'load-more-search-stickers') {
-      await loadMoreSearchStickers();
-   } else if (action === 'load-more-search-packs') {
-      await loadMoreSearchPacks();
    }
 });
 
 document.getElementById('stickerSearchInput')?.addEventListener('input', (e) => {
    clearTimeout(searchTimeout);
    stickerSearchPage = 1;
-   searchTimeout = setTimeout(() => searchStickersToAdd(e.target.value), 300);
+   stickerSearchQuery = e.target.value;
+   searchTimeout = setTimeout(() => searchStickersToAdd(e.target.value, false), 300);
 });
 
 document.getElementById('packSearchInput')?.addEventListener('input', (e) => {
    clearTimeout(searchTimeout);
    packSearchPage = 1;
-   searchTimeout = setTimeout(() => searchPacksToAdd(e.target.value), 300);
+   packSearchQuery = e.target.value;
+   searchTimeout = setTimeout(() => searchPacksToAdd(e.target.value, false), 300);
+});
+
+// Add scroll listener for sticker search results
+document.getElementById('add-stickers')?.addEventListener('scroll', (e) => {
+   if (isLoadingStickers) return;
+   const container = e.target;
+   const scrollTop = container.scrollTop;
+   const scrollHeight = container.scrollHeight;
+   const clientHeight = container.clientHeight;
+   if (scrollTop + clientHeight >= scrollHeight - 500 && stickerSearchHasMore) {
+      loadMoreSearchStickers();
+   }
+});
+
+// Add scroll listener for pack search results
+document.getElementById('add-packs')?.addEventListener('scroll', (e) => {
+   if (isLoadingPacks) return;
+   const container = e.target;
+   const scrollTop = container.scrollTop;
+   const scrollHeight = container.scrollHeight;
+   const clientHeight = container.clientHeight;
+   if (scrollTop + clientHeight >= scrollHeight - 500 && packSearchHasMore) {
+      loadMoreSearchPacks();
+   }
 });
 
 function sortPacks(packs, sortBy) {
@@ -238,6 +265,17 @@ function createCustomPackCard(pack) {
       });
       badgeContainer.appendChild(signalBadge);
    }
+   // Add thumbnails
+   if (pack.thumbnails?.length) {
+      const thumbnailContainer = clone.querySelector('.pack-thumbnail');
+      pack.thumbnails.forEach(thumb => {
+         const imgClone = thumbnailTemplate.content.cloneNode(true);
+         const img = imgClone.querySelector('img');
+         img.src = `/sticker_files/${encodeURIComponent(thumb.pack_name)}/${encodeURIComponent(thumb.file_path)}`;
+         img.alt = thumb.emoji || '';
+         thumbnailContainer.appendChild(imgClone);
+      });
+   }
    clone.querySelector('[data-field="title"]').textContent = pack.title;
    clone.querySelector('[data-field="name"]').textContent = pack.name;
    clone.querySelector('[data-field="sticker_count"]').textContent = `${pack.sticker_count} stickers`;
@@ -330,15 +368,36 @@ async function uploadCustomPackToSignal(packName) {
 
 async function openEditModal(pack) {
    currentEditingPack = pack;
-   currentPackStickers = [...pack.stickers];
-   selectedStickersToAdd.clear();
+   // Fetch full pack data with all stickers
+   try {
+      const response = await fetch(`/api/custom-packs/${encodeURIComponent(pack.name)}`);
+      const data = await response.json();
+      currentPackStickers = [...data.stickers];
+   } catch (error) {
+      console.error('Error loading pack stickers:', error);
+      currentPackStickers = [];
+   }
    selectedPacksToAdd.clear();
+   // Build map of which packs are fully/partially selected
+   updateSelectedPacks();
    document.getElementById('editModalTitle').textContent = pack.name;
    document.getElementById('editPackTitle').value = pack.title;
    renderCurrentStickers();
    editModal.classList.add('active');
+   // Load initial sticker search
    stickerSearchPage = 1;
-   await searchStickersToAdd('');
+   await searchStickersToAdd('', false);
+}
+
+function updateSelectedPacks() {
+   const packsInUse = new Map();
+   currentPackStickers.forEach(sticker => {
+      if (!packsInUse.has(sticker.pack_name)) {
+         packsInUse.set(sticker.pack_name, new Set());
+      }
+      packsInUse.get(sticker.pack_name).add(sticker.file_unique_id);
+   });
+   selectedPacksToAdd = packsInUse;
 }
 
 function closeEditModal() {
@@ -355,7 +414,7 @@ function switchTab(tabName) {
    });
    if (tabName === 'add-packs') {
       packSearchPage = 1;
-      searchPacksToAdd('');
+      searchPacksToAdd('', false);
    }
 }
 
@@ -387,39 +446,60 @@ function createEditableSticker(sticker, index) {
    packTitle.textContent = sticker.pack_title || sticker.pack_name;
    clone.querySelector('[data-action="remove-sticker"]').addEventListener('click', () => {
       currentPackStickers.splice(index, 1);
+      updateSelectedPacks();
       renderCurrentStickers();
+      // Update pack selection display if on that tab
+      if (document.getElementById('add-packs').classList.contains('active')) {
+         updatePackSelectionDisplay();
+      }
    });
    return clone;
 }
 
 async function searchStickersToAdd(query, append = false) {
+   if (isLoadingStickers) return;
    const grid = document.getElementById('searchStickersGrid');
    if (!append) {
       grid.innerHTML = '';
       grid.appendChild(loadingTemplate.content.cloneNode(true));
       stickerSearchPage = 1;
+   } else {
+      // Add loading indicator at the end
+      grid.appendChild(loadingTemplate.content.cloneNode(true));
    }
+   isLoadingStickers = true;
    try {
-      const response = await fetch(`/api/stickers/search?q=${encodeURIComponent(query)}`);
+      const response = await fetch(`/api/stickers/search?q=${encodeURIComponent(query)}&page=${stickerSearchPage}&per_page=100`);
       const data = await response.json();
       if (!append) {
          grid.innerHTML = '';
+      } else {
+         // Remove loading indicator
+         const loadingEl = grid.querySelector('.loading');
+         if (loadingEl) loadingEl.remove();
       }
+      stickerSearchHasMore = data.has_more;
       data.stickers.forEach(item => grid.appendChild(createSelectableSticker(item)));
    } catch (error) {
       console.error('Error searching stickers:', error);
-      grid.innerHTML = '<div class="error">Failed to load stickers</div>';
+      if (!append) {
+         grid.innerHTML = '<div class="error">Failed to load stickers</div>';
+      }
+   } finally {
+      isLoadingStickers = false;
    }
 }
 
 async function loadMoreSearchStickers() {
+   if (!stickerSearchHasMore || isLoadingStickers) return;
+   stickerSearchPage++;
+   await searchStickersToAdd(stickerSearchQuery, true);
 }
 
 function createSelectableSticker(item) {
    const clone = selectableStickerTemplate.content.cloneNode(true);
    const card = clone.querySelector('.sticker-card');
    const filePath = `/sticker_files/${encodeURIComponent(item.pack_name)}/${encodeURIComponent(item.sticker.file_path)}`;
-   const stickerKey = `${item.pack_name}:${item.sticker.file_unique_id}`;
    clone.querySelector('[data-field="image"]').src = filePath;
    const emojiDiv = clone.querySelector('[data-field="emoji"]');
    if (item.emoji) {
@@ -430,16 +510,23 @@ function createSelectableSticker(item) {
    const packTitle = clone.querySelector('[data-field="pack_title"]');
    packTitle.textContent = item.pack_title;
    packTitle.title = item.pack_title;
-   if (selectedStickersToAdd.has(stickerKey)) {
+   // Check if this sticker is already in the pack
+   const isSelected = currentPackStickers.some(
+      s => s.pack_name === item.pack_name && s.file_unique_id === item.sticker.file_unique_id
+   );
+   if (isSelected) {
       card.classList.add('selected');
    }
    card.addEventListener('click', () => {
-      if (selectedStickersToAdd.has(stickerKey)) {
-         selectedStickersToAdd.delete(stickerKey);
+      const existingIndex = currentPackStickers.findIndex(
+         s => s.pack_name === item.pack_name && s.file_unique_id === item.sticker.file_unique_id
+      );
+      if (existingIndex !== -1) {
+         // Remove sticker
+         currentPackStickers.splice(existingIndex, 1);
          card.classList.remove('selected');
       } else {
-         selectedStickersToAdd.add(stickerKey);
-         card.classList.add('selected');
+         // Add sticker
          currentPackStickers.push({
             pack_name: item.pack_name,
             pack_title: item.pack_title,
@@ -447,73 +534,126 @@ function createSelectableSticker(item) {
             file_path: item.sticker.file_path,
             emoji: item.emoji
          });
-         renderCurrentStickers();
+         card.classList.add('selected');
       }
+      updateSelectedPacks();
+      renderCurrentStickers();
    });
    return clone;
 }
 
 async function searchPacksToAdd(query, append = false) {
+   if (isLoadingPacks) return;
    const grid = document.getElementById('searchPacksGrid');
    if (!append) {
       grid.innerHTML = '';
       grid.appendChild(loadingTemplate.content.cloneNode(true));
       packSearchPage = 1;
+   } else {
+      grid.appendChild(loadingTemplate.content.cloneNode(true));
    }
+   isLoadingPacks = true;
    try {
-      const response = await fetch(`/api/packs/search?q=${encodeURIComponent(query)}`);
+      const response = await fetch(`/api/packs/search?q=${encodeURIComponent(query)}&page=${packSearchPage}&per_page=50`);
       const data = await response.json();
       if (!append) {
          grid.innerHTML = '';
+      } else {
+         const loadingEl = grid.querySelector('.loading');
+         if (loadingEl) loadingEl.remove();
       }
+      packSearchHasMore = data.has_more;
       data.packs.forEach(pack => grid.appendChild(createSelectablePack(pack)));
    } catch (error) {
       console.error('Error searching packs:', error);
-      grid.innerHTML = '<div class="error">Failed to load packs</div>';
+      if (!append) {
+         grid.innerHTML = '<div class="error">Failed to load packs</div>';
+      }
+   } finally {
+      isLoadingPacks = false;
    }
 }
 
 async function loadMoreSearchPacks() {
+   if (!packSearchHasMore || isLoadingPacks) return;
+   packSearchPage++;
+   await searchPacksToAdd(packSearchQuery, true);
 }
 
 function createSelectablePack(pack) {
    const clone = selectablePackTemplate.content.cloneNode(true);
    const card = clone.querySelector('.pack-card');
+   // Add thumbnails
+   if (pack.thumbnails?.length) {
+      const thumbnailContainer = clone.querySelector('.pack-thumbnail');
+      pack.thumbnails.slice(0, 2).forEach(thumb => {
+         const imgClone = thumbnailTemplate.content.cloneNode(true);
+         const img = imgClone.querySelector('img');
+         img.src = `/sticker_files/${encodeURIComponent(pack.name)}/${encodeURIComponent(thumb.file_path)}`;
+         img.alt = thumb.emoji || '';
+         thumbnailContainer.appendChild(imgClone);
+      });
+   }
    clone.querySelector('[data-field="title"]').textContent = pack.title;
    clone.querySelector('[data-field="name"]').textContent = pack.name;
    clone.querySelector('[data-field="sticker_count"]').textContent = `${pack.sticker_count} stickers`;
-   if (selectedPacksToAdd.has(pack.name)) {
+   // Check if pack is fully or partially selected
+   const stickersInPack = selectedPacksToAdd.get(pack.name);
+   const isFullySelected = stickersInPack && stickersInPack.size === pack.sticker_count;
+   if (isFullySelected) {
       card.classList.add('selected');
+   } else if (stickersInPack && stickersInPack.size > 0) {
+      card.classList.add('partial');
    }
    card.addEventListener('click', async () => {
-      if (selectedPacksToAdd.has(pack.name)) {
-         selectedPacksToAdd.delete(pack.name);
-         card.classList.remove('selected');
+      if (isFullySelected) {
+         // Unselect pack - remove all stickers from this pack
+         currentPackStickers = currentPackStickers.filter(s => s.pack_name !== pack.name);
+         card.classList.remove('selected', 'partial');
       } else {
-         selectedPacksToAdd.add(pack.name);
-         card.classList.add('selected');
+         // Select pack - add all stickers from this pack
          await addPackStickers(pack.name);
+         card.classList.add('selected');
+         card.classList.remove('partial');
       }
+      updateSelectedPacks();
+      renderCurrentStickers();
    });
    return clone;
+}
+
+function updatePackSelectionDisplay() {
+   // Update the visual state of all pack cards
+   document.querySelectorAll('#searchPacksGrid .pack-card').forEach(card => {
+      const packName = card.querySelector('[data-field="name"]').textContent;
+      const stickerCount = parseInt(card.querySelector('[data-field="sticker_count"]').textContent);
+      const stickersInPack = selectedPacksToAdd.get(packName);
+      const isFullySelected = stickersInPack && stickersInPack.size === stickerCount;
+      card.classList.remove('selected', 'partial');
+      if (isFullySelected) {
+         card.classList.add('selected');
+      } else if (stickersInPack && stickersInPack.size > 0) {
+         card.classList.add('partial');
+      }
+   });
 }
 
 async function addPackStickers(packName) {
    try {
       const response = await fetch(`/api/packs/${encodeURIComponent(packName)}`);
       const pack = await response.json();
+      // Remove any existing stickers from this pack first
+      currentPackStickers = currentPackStickers.filter(s => s.pack_name !== packName);
+      // Add all stickers from the pack
       pack.stickers.forEach(sticker => {
-         if (!currentPackStickers.some(s => s.pack_name === packName && s.file_unique_id === sticker.file_unique_id)) {
-            currentPackStickers.push({
-               pack_name: packName,
-               pack_title: pack.title,
-               file_unique_id: sticker.file_unique_id,
-               file_path: sticker.file_path,
-               emoji: sticker.emoji
-            });
-         }
+         currentPackStickers.push({
+            pack_name: packName,
+            pack_title: pack.title,
+            file_unique_id: sticker.file_unique_id,
+            file_path: sticker.file_path,
+            emoji: sticker.emoji
+         });
       });
-      renderCurrentStickers();
    } catch (error) {
       console.error('Error adding pack stickers:', error);
       alert('Failed to add pack stickers');
