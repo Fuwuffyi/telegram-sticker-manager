@@ -49,6 +49,11 @@ python -m src.web.main
 ---
 
 ## TO-DO List:
-- Make custom pack sticker pack selection disable remove all stickers from said pack.
+- Fix custom packs:
+    - Toggle buttons on packs can't be changed more than once?
+    - No syncing between selected stickers, sticker packs and actual stickers in the pack?
+    - Add reordering feature for selected stickers
+    - Selecting a sticker pack must add all stickers, clicking on it again will remove all stickers from said pack, no matter if partially included or fully included
+    - Loading the individual stickers section takes a while as scroll pagination seems not to work.
 - Improve export to json (maybe exporting everything within a zip?)
   - Make it work properly with both individual packs, custom ones and entire database.
