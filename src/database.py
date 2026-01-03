@@ -465,13 +465,14 @@ class Database:
                 # Insert new stickers in batch with their order preserved
                 if stickers:
                     _ = conn.executemany("""
-                        INSERT INTO custom_pack_stickers 
+                        INSERT INTO custom_pack_stickers
                         (custom_pack_name, pack_name, file_unique_id, display_order)
                         VALUES (?, ?, ?, ?)
                     """, [(name, s['pack_name'], s['file_unique_id'], idx) for idx, s in enumerate(stickers)])
                 conn.commit()
                 return True
-        except Exception:
+        except Exception as e:
+            print(f"Error updating custom pack: {e}")
             return False
 
     def update_custom_pack_signal_url(self, pack_name: str, signal_url: str, uploaded_at: int) -> bool:
