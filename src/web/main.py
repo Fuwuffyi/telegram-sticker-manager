@@ -1,9 +1,11 @@
+import io
+import zipfile
 import asyncio
 import shutil
 import time
 from pathlib import Path
 
-from flask import Flask, Response, jsonify, make_response, render_template, request, send_from_directory
+from flask import Flask, Response, jsonify, make_response, render_template, request, send_from_directory, send_file
 from rapidfuzz import fuzz
 
 from src.config import DATABASE_FILE, DOWNLOAD_DIR
@@ -436,31 +438,63 @@ def delete_custom_pack(pack_name: str) -> tuple[Response, int] | Response:
         return jsonify({'error': f'Internal error: {str(e)}'}), 500
 
 # Export endpoints
-@app.route('/api/export/packs', methods=['GET'])
-def export_packs() -> Response:
-    json_data: str = db.export_sticker_packs_to_json()
-    response: Response = make_response(json_data)
-    response.headers['Content-Type'] = 'application/json'
-    response.headers['Content-Disposition'] = 'attachment; filename=sticker_packs.json'
-    return response
-
 @app.route('/api/export/pack/<pack_name>', methods=['GET'])
 def export_pack(pack_name: str) -> tuple[Response, int] | Response:
     if not db.get_sticker_pack(pack_name):
         return jsonify({'error': 'Pack not found'}), 404
-    json_data: str = db.export_stickers_to_json(pack_name)
+    json_data: str = db.export_single_pack_to_json(pack_name)
     response: Response = make_response(json_data)
     response.headers['Content-Type'] = 'application/json'
-    response.headers['Content-Disposition'] = f'attachment; filename={pack_name}_stickers.json'
+    response.headers['Content-Disposition'] = f'attachment; filename={pack_name}.json'
+    return response
+
+@app.route('/api/export/packs', methods=['GET'])
+def export_all_packs() -> Response:
+    pack_names: list[str] = db.get_all_pack_names()
+    if not pack_names:
+        return jsonify({'error': 'No packs to export'}), 404
+    # Create ZIP file in memory
+    zip_buffer = io.BytesIO()
+    with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zip_file:
+        for pack_name in pack_names:
+            json_data: str = db.export_single_pack_to_json(pack_name)
+            zip_file.writestr(f'{pack_name}.json', json_data)
+    zip_buffer.seek(0)
+    return send_file(
+        zip_buffer,
+        mimetype='application/zip',
+        as_attachment=True,
+        download_name='sticker_packs.zip'
+    )
+
+@app.route('/api/export/custom-pack/<pack_name>', methods=['GET'])
+def export_custom_pack(pack_name: str) -> tuple[Response, int] | Response:
+    if not db.get_custom_pack(pack_name):
+        return jsonify({'error': 'Custom pack not found'}), 404
+    json_data: str = db.export_single_custom_pack_to_json(pack_name)
+    response: Response = make_response(json_data)
+    response.headers['Content-Type'] = 'application/json'
+    response.headers['Content-Disposition'] = f'attachment; filename={pack_name}_custom.json'
     return response
 
 @app.route('/api/export/custom-packs', methods=['GET'])
-def export_custom_packs() -> Response:
-    json_data: str = db.export_custom_packs_to_json()
-    response: Response = make_response(json_data)
-    response.headers['Content-Type'] = 'application/json'
-    response.headers['Content-Disposition'] = 'attachment; filename=custom_packs.json'
-    return response
+def export_all_custom_packs() -> Response:
+    pack_names: list[str] = db.get_all_custom_pack_names()
+    if not pack_names:
+        return jsonify({'error': 'No custom packs to export'}), 404
+    # Create ZIP file in memory
+    zip_buffer = io.BytesIO()
+    with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zip_file:
+        for pack_name in pack_names:
+            json_data: str = db.export_single_custom_pack_to_json(pack_name)
+            zip_file.writestr(f'{pack_name}_custom.json', json_data)
+    zip_buffer.seek(0)
+    return send_file(
+        zip_buffer,
+        mimetype='application/zip',
+        as_attachment=True,
+        download_name='custom_packs.zip'
+    )
 
 @app.route('/sticker_files/<pack_name>/<filename>')
 def serve_sticker(pack_name: str, filename: str) -> Response:

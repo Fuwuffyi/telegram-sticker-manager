@@ -525,54 +525,103 @@ class Database:
             ]
             return stickers, total
 
-    # Export Operations
-    def export_sticker_packs_to_json(self) -> str:
+    def get_all_pack_names(self) -> list[str]:
         with self._connect() as conn:
+            cursor: sqlite3.Cursor = conn.execute("SELECT name FROM sticker_packs ORDER BY name")
+            return [row['name'] for row in cursor.fetchall()]
+
+    def get_all_custom_pack_names(self) -> list[str]:
+        with self._connect() as conn:
+            cursor: sqlite3.Cursor = conn.execute("SELECT name FROM custom_packs ORDER BY name")
+            return [row['name'] for row in cursor.fetchall()]
+
+    # Export Operations
+    def export_single_pack_to_json(self, pack_name: str) -> str:
+        with self._connect() as conn:
+            # Get pack metadata
             cursor: sqlite3.Cursor = conn.execute("""
                 SELECT name, title, artist, last_update, sticker_count,
                        signal_url, signal_uploaded_at
-                FROM sticker_packs
-                ORDER BY name
-            """)
-            packs_dict: dict[str, dict[str, str | int | None]] = {
-                row['name']: {
-                    'name': row['name'],
-                    'title': row['title'],
-                    'artist': row['artist'],
-                    'last_update': row['last_update'],
-                    'sticker_count': row['sticker_count'],
-                    'signal_url': row['signal_url'],
-                    'signal_uploaded_at': row['signal_uploaded_at']
+                FROM sticker_packs WHERE name = ?
+            """, (pack_name,))
+            pack_row = cursor.fetchone()
+            if not pack_row:
+                return json.dumps({"error": "Pack not found"}, ensure_ascii=False, indent=2)
+            # Get all stickers for this pack
+            cursor = conn.execute("""
+                SELECT file_id, file_unique_id, emoji, file_path, display_order
+                FROM stickers
+                WHERE pack_name = ?
+                ORDER BY display_order
+            """, (pack_name,))
+            stickers = [
+                {
+                    'file_id': row['file_id'],
+                    'file_unique_id': row['file_unique_id'],
+                    'emoji': row['emoji'],
+                    'file_path': row['file_path'],
+                    'display_order': row['display_order']
                 }
                 for row in cursor.fetchall()
+            ]
+            pack_data = {
+                'name': pack_row['name'],
+                'title': pack_row['title'],
+                'artist': pack_row['artist'],
+                'last_update': pack_row['last_update'],
+                'sticker_count': pack_row['sticker_count'],
+                'telegram_url': f"https://t.me/addstickers/{pack_row['name']}",
+                'signal_url': pack_row['signal_url'],
+                'signal_uploaded_at': pack_row['signal_uploaded_at'],
+                'stickers': stickers
             }
-            return json.dumps(packs_dict, ensure_ascii=False, indent=2)
+            return json.dumps(pack_data, ensure_ascii=False, indent=2)
 
-    def export_stickers_to_json(self, pack_name: str) -> str:
-        stickers, _ = self.get_pack_stickers(pack_name, page=1, per_page=10000)
-        stickers_dict: dict[str, dict[str, str | int | None]] = {
-            sticker['file_unique_id']: dict(sticker)
-            for sticker in stickers
-        }
-        return json.dumps(stickers_dict, ensure_ascii=False, indent=2)
-
-    def export_custom_packs_to_json(self) -> str:
+    def export_single_custom_pack_to_json(self, pack_name: str) -> str:
         with self._connect() as conn:
-            cursor: sqlite3.Cursor = conn.execute(
-                "SELECT name, title, signal_url, signal_uploaded_at, last_modified FROM custom_packs"
-            )
-            packs = cursor.fetchall()
-            result: dict[str, dict[str, str | int | None | list[dict[str, str | int]]]] = {}
-            for row in packs:
-                pack_name: str = row['name']
-                pack_title: str = row['title']
-                stickers, _ = self.get_custom_pack_stickers(pack_name, page=1, per_page=10000)
-                result[pack_name] = {
-                    'name': pack_name,
-                    'title': pack_title,
-                    'signal_url': row['signal_url'],
-                    'signal_uploaded_at': row['signal_uploaded_at'],
-                    'last_modified': row['last_modified'],
-                    'stickers': [dict(s) for s in stickers]
+            # Get custom pack metadata
+            cursor: sqlite3.Cursor = conn.execute("""
+                SELECT name, title, signal_url, signal_uploaded_at, last_modified
+                FROM custom_packs WHERE name = ?
+            """, (pack_name,))
+            pack_row = cursor.fetchone()
+            if not pack_row:
+                return json.dumps({"error": "Custom pack not found"}, ensure_ascii=False, indent=2)
+            # Get all stickers for this custom pack with full details
+            cursor = conn.execute("""
+                SELECT
+                    cps.display_order,
+                    cps.pack_name as source_pack_name,
+                    p.title as source_pack_title,
+                    s.file_unique_id,
+                    s.file_path,
+                    s.emoji,
+                    s.file_id
+                FROM custom_pack_stickers cps
+                JOIN stickers s ON cps.file_unique_id = s.file_unique_id
+                JOIN sticker_packs p ON cps.pack_name = p.name
+                WHERE cps.custom_pack_name = ?
+                ORDER BY cps.display_order
+            """, (pack_name,))
+            stickers = [
+                {
+                    'display_order': row['display_order'],
+                    'source_pack_name': row['source_pack_name'],
+                    'source_pack_title': row['source_pack_title'],
+                    'file_unique_id': row['file_unique_id'],
+                    'file_id': row['file_id'],
+                    'file_path': row['file_path'],
+                    'emoji': row['emoji']
                 }
-            return json.dumps(result, ensure_ascii=False, indent=2)
+                for row in cursor.fetchall()
+            ]
+            pack_data = {
+                'name': pack_row['name'],
+                'title': pack_row['title'],
+                'signal_url': pack_row['signal_url'],
+                'signal_uploaded_at': pack_row['signal_uploaded_at'],
+                'last_modified': pack_row['last_modified'],
+                'sticker_count': len(stickers),
+                'stickers': stickers
+            }
+            return json.dumps(pack_data, ensure_ascii=False, indent=2)

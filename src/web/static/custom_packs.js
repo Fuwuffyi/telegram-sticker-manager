@@ -713,16 +713,40 @@ async function exportCustomPacks() {
          const url = window.URL.createObjectURL(blob);
          const a = document.createElement('a');
          a.href = url;
-         a.download = 'custom_packs.json';
+         a.download = 'custom_packs.zip';
          document.body.appendChild(a);
          a.click();
          window.URL.revokeObjectURL(url);
          document.body.removeChild(a);
       } else {
-         alert('Failed to export custom packs');
+         const error = await response.json();
+         alert(error.error || 'Failed to export custom packs');
       }
    } catch (error) {
       console.error('Error exporting custom packs:', error);
       alert('Failed to export custom packs');
+   }
+}
+
+async function exportSingleCustomPack(packName) {
+   try {
+      const response = await fetch(`/api/export/custom-pack/${encodeURIComponent(packName)}`);
+      if (response.ok) {
+         const blob = await response.blob();
+         const url = window.URL.createObjectURL(blob);
+         const a = document.createElement('a');
+         a.href = url;
+         a.download = `${packName}_custom.json`;
+         document.body.appendChild(a);
+         a.click();
+         window.URL.revokeObjectURL(url);
+         document.body.removeChild(a);
+      } else {
+         const error = await response.json();
+         alert(error.error || 'Failed to export custom pack');
+      }
+   } catch (error) {
+      console.error('Error exporting custom pack:', error);
+      alert('Failed to export custom pack');
    }
 }

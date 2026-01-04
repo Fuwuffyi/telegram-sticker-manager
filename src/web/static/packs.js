@@ -486,13 +486,14 @@ async function exportAllPacks() {
          const url = window.URL.createObjectURL(blob);
          const a = document.createElement('a');
          a.href = url;
-         a.download = 'sticker_packs.json';
+         a.download = 'sticker_packs.zip';
          document.body.appendChild(a);
          a.click();
          window.URL.revokeObjectURL(url);
          document.body.removeChild(a);
       } else {
-         alert('Failed to export packs');
+         const error = await response.json();
+         alert(error.error || 'Failed to export packs');
       }
    } catch (error) {
       console.error('Error exporting packs:', error);
@@ -509,13 +510,14 @@ async function exportCurrentPack() {
          const url = window.URL.createObjectURL(blob);
          const a = document.createElement('a');
          a.href = url;
-         a.download = `${currentPackName}_stickers.json`;
+         a.download = `${currentPackName}.json`;
          document.body.appendChild(a);
          a.click();
          window.URL.revokeObjectURL(url);
          document.body.removeChild(a);
       } else {
-         alert('Failed to export pack');
+         const error = await response.json();
+         alert(error.error || 'Failed to export pack');
       }
    } catch (error) {
       console.error('Error exporting pack:', error);

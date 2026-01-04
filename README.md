@@ -52,5 +52,3 @@ python -m src.web.main
 - Fix custom packs:
     - Add reordering feature for selected stickers (UI works, but backend doesn't save?)
     - Loading the individual stickers section takes a while as scroll pagination seems not to work (it loads all stickers right away).
-- Improve export to json (maybe exporting everything within a zip?)
-  - Make it work properly with both individual packs, custom ones and entire database.
