@@ -50,5 +50,4 @@ python -m src.web.main
 
 ## TO-DO List:
 - Fix custom packs:
-    - Add reordering feature for selected stickers (UI works, but backend doesn't save?)
     - Loading the individual stickers section takes a while as scroll pagination seems not to work (it loads all stickers right away).

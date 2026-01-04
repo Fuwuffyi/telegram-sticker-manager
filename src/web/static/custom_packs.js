@@ -47,6 +47,7 @@ const itemsPerBatch = 50;
 // Drag and drop state
 let draggedElement = null;
 let draggedIndex = null;
+let dragOverElement = null;
 
 loadCustomPacks();
 
@@ -139,6 +140,9 @@ document.getElementById('packSearchInput')?.addEventListener('input', (e) => {
 // Add scroll listener for sticker search results
 document.getElementById('add-stickers')?.addEventListener('scroll', (e) => {
    if (isLoadingStickers) return;
+   // Check if the tab is currently active
+   const addStickersTab = document.getElementById('add-stickers');
+   if (!addStickersTab.classList.contains('active')) return;
    const container = e.target;
    const scrollTop = container.scrollTop;
    const scrollHeight = container.scrollHeight;
@@ -151,6 +155,9 @@ document.getElementById('add-stickers')?.addEventListener('scroll', (e) => {
 // Add scroll listener for pack search results
 document.getElementById('add-packs')?.addEventListener('scroll', (e) => {
    if (isLoadingPacks) return;
+   // Check if the tab is currently active
+   const addPacksTab = document.getElementById('add-packs');
+   if (!addPacksTab.classList.contains('active')) return;
    const container = e.target;
    const scrollTop = container.scrollTop;
    const scrollHeight = container.scrollHeight;
@@ -384,8 +391,16 @@ async function openEditModal(pack) {
    document.getElementById('editPackTitle').value = pack.title;
    renderCurrentStickers();
    editModal.classList.add('active');
+   // Reset sticker search state
    stickerSearchPage = 1;
-   await searchStickersToAdd('', false);
+   stickerSearchQuery = '';
+   const stickersGrid = document.getElementById('searchStickersGrid');
+   stickersGrid.innerHTML = '<div class="empty-state"><p>Switch to this tab to search stickers</p></div>';
+   // Reset pack search state
+   packSearchPage = 1;
+   packSearchQuery = '';
+   const packsGrid = document.getElementById('searchPacksGrid');
+   packsGrid.innerHTML = '<div class="empty-state"><p>Switch to this tab to search packs</p></div>';
 }
 
 function closeEditModal() {
@@ -401,9 +416,21 @@ function switchTab(tabName) {
    document.querySelectorAll('.tab-content').forEach(content => {
       content.classList.toggle('active', content.id === tabName);
    });
-   if (tabName === 'add-packs') {
-      packSearchPage = 1;
-      searchPacksToAdd('', false);
+   // Load data only when switching to the tab
+   if (tabName === 'add-stickers') {
+      const grid = document.getElementById('searchStickersGrid');
+      // Only load if empty or showing placeholder
+      if (grid.querySelector('.empty-state')) {
+         stickerSearchPage = 1;
+         searchStickersToAdd('', false);
+      }
+   } else if (tabName === 'add-packs') {
+      const grid = document.getElementById('searchPacksGrid');
+      // Only load if empty or showing placeholder
+      if (grid.querySelector('.empty-state')) {
+         packSearchPage = 1;
+         searchPacksToAdd('', false);
+      }
    }
 }
 
@@ -427,36 +454,49 @@ function createEditableSticker(sticker, index) {
    // Make card draggable
    card.draggable = true;
    card.dataset.index = index;
-   // Drag events
+   // Drag start
    card.addEventListener('dragstart', (e) => {
       draggedElement = card;
-      draggedIndex = index;
+      draggedIndex = parseInt(card.dataset.index);
       card.style.opacity = '0.5';
       e.dataTransfer.effectAllowed = 'move';
+      e.dataTransfer.setData('text/html', card.innerHTML);
    });
+   // Drag end
    card.addEventListener('dragend', (e) => {
       card.style.opacity = '1';
-      draggedElement = null;
-      draggedIndex = null;
+      // Remove all drag-over indicators
+      document.querySelectorAll('.sticker-card').forEach(c => {
+         c.style.borderColor = '';
+      });
    });
+   // Drag over
    card.addEventListener('dragover', (e) => {
       e.preventDefault();
       e.dataTransfer.dropEffect = 'move';
       if (draggedElement && draggedElement !== card) {
-         const targetIndex = parseInt(card.dataset.index);
-         if (draggedIndex < targetIndex) {
-            card.parentNode.insertBefore(draggedElement, card.nextSibling);
-         } else {
-            card.parentNode.insertBefore(draggedElement, card);
-         }
+         // Visual feedback
+         card.style.borderColor = 'var(--accent)';
       }
    });
+   // Drag leave
+   card.addEventListener('dragleave', (e) => {
+      card.style.borderColor = '';
+   });
+   // Drop
    card.addEventListener('drop', (e) => {
       e.preventDefault();
+      e.stopPropagation();
+      card.style.borderColor = '';
       if (draggedElement && draggedElement !== card) {
          const targetIndex = parseInt(card.dataset.index);
-         const movedSticker = currentPackStickers.splice(draggedIndex, 1)[0];
-         currentPackStickers.splice(targetIndex, 0, movedSticker);
+         // Perform the reorder in the array
+         const movedSticker = currentPackStickers[draggedIndex];
+         currentPackStickers.splice(draggedIndex, 1);
+         // Adjust target index if we removed an element before it
+         const adjustedTargetIndex = draggedIndex < targetIndex ? targetIndex - 1 : targetIndex;
+         currentPackStickers.splice(adjustedTargetIndex, 0, movedSticker);
+         // Re-render the entire grid
          renderCurrentStickers();
       }
    });
