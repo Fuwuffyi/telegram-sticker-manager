@@ -11,14 +11,14 @@ create custom sticker packs out of them.
 python -m venv .venv
 ```
 
-2. Install the requirements
-```sh
-pip install -r requirements.txt
-```
-
-3. Enter the environment
+2. Enter the environment
 ```sh
 source .venv/bin/activate
+```
+
+3. Install the requirements
+```sh
+pip install -r requirements.txt
 ```
 
 4. Set up environment variables  
