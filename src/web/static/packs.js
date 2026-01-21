@@ -18,14 +18,11 @@ if (updateAllBtn) {
 const packCardTemplate = document.getElementById('packCardTemplate');
 const thumbnailImageTemplate = document.getElementById('thumbnailImageTemplate');
 const thumbnailVideoTemplate = document.getElementById('thumbnailVideoTemplate');
-const stickerItemTemplate = document.getElementById('stickerItemTemplate');
+const stickerImageItemTemplate = document.getElementById('stickerImageItemTemplate');
+const stickerVideoItemTemplate = document.getElementById('stickerVideoItemTemplate');
 
 let currentPackName = null;
-let currentPage = 1;
-let totalPages = 1;
 let currentQuery = '';
-let currentModalPage = 1;
-let totalModalPages = 1;
 let isLoadingMore = false;
 let allPacks = [];
 let currentSortBy = 'last_update_desc';
@@ -40,13 +37,11 @@ searchPacks('');
 
 searchInput.addEventListener('input', (e) => {
    clearTimeout(searchTimeout);
-   currentPage = 1;
    searchTimeout = setTimeout(() => searchPacks(e.target.value), 300);
 });
 
 sortBy.addEventListener('change', (e) => {
    currentSortBy = e.target.value;
-   currentPage = 1;
    applyFiltersAndSort();
 });
 
@@ -76,7 +71,6 @@ function cycleFilterState(filterKey, element) {
    } else if (states[nextIdx] === 'hide') {
       element.classList.add('hide');
    }
-   currentPage = 1;
    applyFiltersAndSort();
 }
 
@@ -264,11 +258,11 @@ async function updateSinglePack(packName, button) {
 }
 
 function createStickerItem(packName, sticker) {
-   const clone = stickerItemTemplate.content.cloneNode(true);
-   const img = clone.querySelector('[data-field="image"]');
-   img.src = `/sticker_files/${encodeURIComponent(packName)}/${encodeURIComponent(sticker.file_path)}`;
-   img.title = sticker.emoji || '';
-   return clone;
+   const tagClone = sticker.file_path.includes("webm") ? stickerVideoItemTemplate.content.cloneNode(true) : stickerImageItemTemplate.content.cloneNode(true);
+   const t = tagClone.querySelector(sticker.file_path.includes("webm") ? 'video' : 'img');
+   t.src = `/sticker_files/${encodeURIComponent(packName)}/${encodeURIComponent(sticker.file_path)}`;
+   t.title = sticker.emoji || '';
+   return tagClone;
 }
 
 function sortPacks(packs, sortBy) {
@@ -373,7 +367,6 @@ async function searchPacks(query) {
 
 async function showPack(packName) {
    currentPackName = packName;
-   currentModalPage = 1;
    try {
       const response = await fetch(`/api/packs/${encodeURIComponent(packName)}`);
       const pack = await response.json();
@@ -497,6 +490,4 @@ async function exportCurrentPack() {
 function closeModal() {
    modal.classList.remove('active');
    currentPackName = null;
-   currentModalPage = 1;
-   totalModalPages = 1;
 }

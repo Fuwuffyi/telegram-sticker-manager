@@ -117,10 +117,16 @@
       <template id="thumbnailVideoTemplate">
          <video data-field="src" alt="" autoplay loop muted type="video/webm">
       </template>
-      <!-- Sticker Item Template -->
-      <template id="stickerItemTemplate">
+      <!-- Sticker Image Item Template -->
+      <template id="stickerImageItemTemplate">
          <div class="sticker-item">
-            <img data-field="image" alt="" loading="lazy">
+            <img data-field="src" alt="" loading="lazy">
+         </div>
+      </template>
+      <!-- Sticker Video Item Template -->
+      <template id="stickerVideoItemTemplate">
+         <div class="sticker-item">
+            <video data-field="src" alt="" autoplay loop muted type="video/webm">
          </div>
       </template>
       <script src="{{ url_for('static', filename='packs.js') }}" defer></script>
