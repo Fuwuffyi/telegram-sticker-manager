@@ -258,7 +258,6 @@ async function loadCustomPacks() {
 
 function createCustomPackCard(pack) {
    const clone = customPackCardTemplate.content.cloneNode(true);
-   const card = clone.querySelector('.pack-card');
    const badgeContainer = clone.querySelector('[data-badge-container]');
    if (pack.signal_url) {
       const signalBadge = document.createElement('a');
@@ -463,7 +462,7 @@ function createEditableSticker(sticker, index) {
       e.dataTransfer.setData('text/html', card.innerHTML);
    });
    // Drag end
-   card.addEventListener('dragend', (e) => {
+   card.addEventListener('dragend', () => {
       card.style.opacity = '1';
       // Remove all drag-over indicators
       document.querySelectorAll('.sticker-card').forEach(c => {
@@ -480,7 +479,7 @@ function createEditableSticker(sticker, index) {
       }
    });
    // Drag leave
-   card.addEventListener('dragleave', (e) => {
+   card.addEventListener('dragleave', () => {
       card.style.borderColor = '';
    });
    // Drop

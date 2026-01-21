@@ -118,7 +118,6 @@ function formatDate(timestamp) {
 
 function createPackCard(pack) {
    const clone = packCardTemplate.content.cloneNode(true);
-   const card = clone.querySelector('.pack-card');
    const badgeContainer = clone.querySelector('[data-badge-container]');
    if (pack.used_in_custom_packs) {
       const customBadge = document.createElement('div');
