@@ -110,20 +110,18 @@
          </div>
       </template>
       <!-- Thumbnail Image Template -->
-      <template id="thumbnailTemplate">
+      <template id="thumbnailImageTemplate">
          <img data-field="src" alt="" loading="lazy">
+      </template>
+      <!-- Thumbnail Video Template -->
+      <template id="thumbnailVideoTemplate">
+         <video data-field="src" alt="" autoplay loop muted type="video/webm">
       </template>
       <!-- Sticker Item Template -->
       <template id="stickerItemTemplate">
          <div class="sticker-item">
             <img data-field="image" alt="" loading="lazy">
          </div>
-      </template>
-      <!-- Load More Button Template -->
-      <template id="loadMoreTemplate">
-         <button class="btn btn-primary load-more-btn" data-action="load-more-stickers">
-            <span data-field="text"></span>
-         </button>
       </template>
       <script src="{{ url_for('static', filename='packs.js') }}" defer></script>
    </body>

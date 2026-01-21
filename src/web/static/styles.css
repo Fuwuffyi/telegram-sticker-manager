@@ -378,7 +378,8 @@ body {
    aspect-ratio: 1 / 1;
 }
 
-.pack-thumbnail img {
+.pack-thumbnail img,
+.pack-thumbnail video {
    aspect-ratio: 1 / 1;
    width: 100%;
    height: 100%;

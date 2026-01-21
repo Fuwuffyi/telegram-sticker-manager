@@ -78,17 +78,11 @@ def custom_packs_page() -> str:
 @app.route('/api/packs/search')
 def search_packs() -> Response:
     query: str = request.args.get('q', '')
-    page: int = int(request.args.get('page', 1))
-    per_page: int = int(request.args.get('per_page', 100000))
     packs, _ = db.search_sticker_packs(query, page=1, per_page=100000)
     filtered_packs: list[StickerPackRecord] = fuzzy_search_packs(query, packs)
-    # Apply pagination
-    start_idx = (page - 1) * per_page
-    end_idx = start_idx + per_page
-    paginated_packs = filtered_packs[start_idx:end_idx]
     # Get thumbnails for each pack
     packs_with_thumbnails = []
-    for pack in paginated_packs:
+    for pack in filtered_packs:
         thumbnails: list[StickerRecord] = db.get_pack_thumbnail_stickers(pack['name'], limit=4)
         pack_dict = dict(pack)
         pack_dict['thumbnails'] = [
@@ -107,9 +101,6 @@ def search_packs() -> Response:
     return jsonify({
         'packs': packs_with_thumbnails,
         'total': len(filtered_packs),
-        'page': page,
-        'per_page': per_page,
-        'has_more': end_idx < len(filtered_packs)
     })
 
 @app.route('/api/packs/<pack_name>')

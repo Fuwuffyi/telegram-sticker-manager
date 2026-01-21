@@ -16,9 +16,9 @@ if (updateAllBtn) {
 }
 
 const packCardTemplate = document.getElementById('packCardTemplate');
-const thumbnailTemplate = document.getElementById('thumbnailTemplate');
+const thumbnailImageTemplate = document.getElementById('thumbnailImageTemplate');
+const thumbnailVideoTemplate = document.getElementById('thumbnailVideoTemplate');
 const stickerItemTemplate = document.getElementById('stickerItemTemplate');
-const loadMoreTemplate = document.getElementById('loadMoreTemplate');
 
 let currentPackName = null;
 let currentPage = 1;
@@ -115,8 +115,6 @@ document.addEventListener('click', async (e) => {
       await exportAllPacks();
    } else if (action === 'export-current-pack') {
       await exportCurrentPack();
-   } else if (action === 'load-more-stickers') {
-      await loadMoreStickers();
    }
 });
 
@@ -153,11 +151,11 @@ function createPackCard(pack) {
    if (pack.thumbnails?.length) {
       const thumbnailContainer = clone.querySelector('.pack-thumbnail');
       pack.thumbnails.forEach(thumb => {
-         const imgClone = thumbnailTemplate.content.cloneNode(true);
-         const img = imgClone.querySelector('img');
-         img.src = `/sticker_files/${encodeURIComponent(pack.name)}/${encodeURIComponent(thumb.file_path)}`;
-         img.alt = thumb.emoji || '';
-         thumbnailContainer.appendChild(imgClone);
+         const tagClone = thumb.file_path.includes("webm") ? thumbnailVideoTemplate.content.cloneNode(true) : thumbnailImageTemplate.content.cloneNode(true);
+         const t = tagClone.querySelector(thumb.file_path.includes("webm") ? 'video' : 'img');
+         t.src = `/sticker_files/${encodeURIComponent(pack.name)}/${encodeURIComponent(thumb.file_path)}`;
+         t.alt = thumb.emoji || '';
+         thumbnailContainer.appendChild(tagClone);
       });
    }
    clone.querySelector('[data-field="title"]').textContent = pack.title;
@@ -273,12 +271,6 @@ function createStickerItem(packName, sticker) {
    return clone;
 }
 
-function createLoadMoreButton(current, total) {
-   const clone = loadMoreTemplate.content.cloneNode(true);
-   clone.querySelector('[data-field="text"]').textContent = `Load More (${current}/${total})`;
-   return clone;
-}
-
 function sortPacks(packs, sortBy) {
    const sorted = [...packs];
    switch (sortBy) {
@@ -383,40 +375,17 @@ async function showPack(packName) {
    currentPackName = packName;
    currentModalPage = 1;
    try {
-      const response = await fetch(`/api/packs/${encodeURIComponent(packName)}?page=1&per_page=100`);
+      const response = await fetch(`/api/packs/${encodeURIComponent(packName)}`);
       const pack = await response.json();
-      totalModalPages = pack.total_pages;
       document.getElementById('modalTitle').textContent = pack.title;
       document.getElementById('modalSubtitle').textContent = `${pack.name} • ${pack.artist}`;
       const modalStickers = document.getElementById('modalStickers');
       modalStickers.innerHTML = '';
       pack.stickers.forEach(sticker => modalStickers.appendChild(createStickerItem(packName, sticker)));
-      if (totalModalPages > 1) {
-         modalStickers.appendChild(createLoadMoreButton(currentModalPage, totalModalPages));
-      }
       modal.classList.add('active');
    } catch (error) {
       console.error('Error loading pack:', error);
       alert('Failed to load pack stickers');
-   }
-}
-
-async function loadMoreStickers() {
-   if (!currentPackName || currentModalPage >= totalModalPages) return;
-   currentModalPage++;
-   try {
-      const response = await fetch(`/api/packs/${encodeURIComponent(currentPackName)}?page=${currentModalPage}&per_page=100`);
-      const pack = await response.json();
-      const modalStickers = document.getElementById('modalStickers');
-      const loadMoreBtn = modalStickers.querySelector('.load-more-btn');
-      if (loadMoreBtn) loadMoreBtn.remove();
-      pack.stickers.forEach(sticker => modalStickers.appendChild(createStickerItem(currentPackName, sticker)));
-      if (currentModalPage < totalModalPages) {
-         modalStickers.appendChild(createLoadMoreButton(currentModalPage, totalModalPages));
-      }
-   } catch (error) {
-      console.error('Error loading more stickers:', error);
-      alert('Failed to load more stickers');
    }
 }
 
